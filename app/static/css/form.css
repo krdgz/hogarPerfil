@@ -14,6 +14,12 @@ body {
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0,0,0,.07);
 }
+.site-footer {
+  padding: 0 16px 16px;
+  color: #63716d;
+  font-size: 11px;
+  text-align: center;
+}
 
 h1 { font-size: 18px; margin: 0; }
 h2 { font-size: 15px; margin: 22px 0 8px; border-bottom: 2px solid #234; padding-bottom: 4px; }
