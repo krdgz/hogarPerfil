@@ -27,6 +27,42 @@
     });
   }
 
+  function siguienteCodigo(codigo) {
+    const digits = String(codigo ?? "").trim();
+    if (!/^\d+$/.test(digits)) return "";
+    const nextDigits = digits.split("");
+    let carry = 1;
+    for (let index = nextDigits.length - 1; index >= 0 && carry; index--) {
+      const sum = Number(nextDigits[index]) + carry;
+      nextDigits[index] = String(sum % 10);
+      carry = Math.floor(sum / 10);
+    }
+    if (carry) nextDigits.unshift(String(carry));
+    return nextDigits.join("");
+  }
+
+  if (!NUCLEO) {
+    const inputCodigo = $("#codigo");
+    let cargandoCodigo = false;
+    const sugerirCodigo = async () => {
+      if (cargandoCodigo || inputCodigo.value.trim()) return;
+      cargandoCodigo = true;
+      try {
+        const response = await fetch("/nucleos/api/ultimo-codigo");
+        if (!response.ok) return;
+        const data = await response.json();
+        const suggestion = siguienteCodigo(data.codigo);
+        if (suggestion && !inputCodigo.value.trim()) inputCodigo.value = suggestion;
+      } catch {
+        return;
+      } finally {
+        cargandoCodigo = false;
+      }
+    };
+    inputCodigo.addEventListener("focus", sugerirCodigo);
+    inputCodigo.addEventListener("click", sugerirCodigo);
+  }
+
   // ---------- Filtrado encadenado Provincia → Municipio → Consejo → Circunscripción/Bodega ----------
   const selProv = $("#provincia_id");
   const selMun  = $("#municipio_id");
@@ -135,6 +171,39 @@
     if (event.target instanceof HTMLSelectElement) event.target.focus({ preventScroll: true });
   });
   document.addEventListener("keydown", event => {
+    if (event.key !== "Delete") return;
+    const target = event.target;
+
+    if (target instanceof HTMLSelectElement) {
+      if (!Array.from(target.options).some(item => item.value === "")) return;
+      event.preventDefault();
+      if (target.value !== "") {
+        target.value = "";
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    if (target.readOnly) return;
+    if (target instanceof HTMLInputElement && ["button", "submit", "reset", "image", "hidden", "file", "range", "color"].includes(target.type)) return;
+
+    event.preventDefault();
+    if (target instanceof HTMLInputElement && ["checkbox", "radio"].includes(target.type)) {
+      if (target.checked) {
+        target.checked = false;
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+
+    if (target.value !== "") {
+      target.value = "";
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+      target.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+  document.addEventListener("keydown", event => {
     const select = event.target;
     if (!(select instanceof HTMLSelectElement) || !/^\d$/.test(event.key)) return;
     event.preventDefault();
@@ -151,10 +220,49 @@
   });
 
   const focusableSelector = 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]):not(.btn-remove), a[href]';
+  const fieldSelector = 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])';
   let lastArrowLeft = { target: null, time: 0 };
   document.addEventListener("keydown", event => {
     if (event.key !== "ArrowLeft") lastArrowLeft = { target: null, time: 0 };
     const target = event.target;
+    if (target instanceof HTMLSelectElement) {
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+      event.preventDefault();
+      lastArrowLeft = { target: null, time: 0 };
+      const fields = $$(fieldSelector).filter(field =>
+        field.tabIndex >= 0 && field.getClientRects().length > 0
+      );
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const index = fields.indexOf(target);
+        const nextIndex = index + (event.key === "ArrowLeft" ? -1 : 1);
+        if (nextIndex >= 0 && nextIndex < fields.length) {
+          fields[nextIndex].focus({ preventScroll: true });
+        }
+        return;
+      }
+
+      const currentRect = target.getBoundingClientRect();
+      const currentCenterY = currentRect.top + currentRect.height / 2;
+      const currentCenterX = currentRect.left + currentRect.width / 2;
+      const direction = event.key === "ArrowUp" ? -1 : 1;
+      const candidates = fields.filter(field => field !== target).map(field => {
+        const rect = field.getBoundingClientRect();
+        return {
+          field,
+          centerY: rect.top + rect.height / 2,
+          centerX: rect.left + rect.width / 2,
+        };
+      }).filter(item => (item.centerY - currentCenterY) * direction > 4);
+      if (!candidates.length) return;
+      const nearestRowDistance = Math.min(...candidates.map(item =>
+        Math.abs(item.centerY - currentCenterY)
+      ));
+      const next = candidates
+        .filter(item => Math.abs(Math.abs(item.centerY - currentCenterY) - nearestRowDistance) < 8)
+        .sort((a, b) => Math.abs(a.centerX - currentCenterX) - Math.abs(b.centerX - currentCenterX))[0];
+      next.field.focus({ preventScroll: true });
+      return;
+    }
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
     if (target.matches('[type="radio"], [type="checkbox"]')) return;
 
@@ -202,12 +310,24 @@
   });
 
   document.addEventListener("click", event => {
+    const strategyChoice = event.target.closest('#tbody-estrategias input[type="checkbox"]');
+    if (strategyChoice && strategyChoice.checked) {
+      strategyChoice.closest("tr").querySelectorAll('input[type="checkbox"]').forEach(choice => {
+        if (choice !== strategyChoice) choice.checked = false;
+      });
+      return;
+    }
+
     const fillButton = event.target.closest("[data-fill-target]");
     if (fillButton) {
       const selector = fillButton.dataset.fillTarget;
       const value = fillButton.dataset.fillValue;
-      $$(selector).forEach(input => {
-        input.value = value;
+      const inputs = $$(selector);
+      const alreadyFilledForAll = inputs.length > 0 && inputs.every(input =>
+        boolFromSiNo(input.value) === (value === "Si")
+      );
+      inputs.forEach(input => {
+        input.value = alreadyFilledForAll ? "" : value;
         normalizaSiNo(input);
       });
       return;
@@ -216,9 +336,15 @@
     const strategyButton = event.target.closest("[data-fill-strategies]");
     if (strategyButton) {
       const value = strategyButton.dataset.fillStrategies;
-      $$("#tbody-estrategias tr").forEach(row => {
-        const radio = row.querySelector(`input[type="radio"][value="${value}"]`);
-        if (radio) radio.checked = true;
+      const rows = $$("#tbody-estrategias tr");
+      const alreadySelectedForAll = rows.length > 0 && rows.every(row => {
+        const selected = row.querySelector('input[type="checkbox"]:checked');
+        return selected && selected.value === value;
+      });
+      rows.forEach(row => {
+        row.querySelectorAll('input[type="checkbox"]').forEach(choice => {
+          choice.checked = !alreadySelectedForAll && choice.value === value;
+        });
       });
     }
   });
@@ -366,6 +492,9 @@
           if (optionItem.value) optionItem.textContent = optionItem.dataset.codigo;
         });
       });
+      select.addEventListener("change", () => {
+        if (select.value) selTrabaja.value = "1";
+      });
     });
 
     const selMotivo = tr.querySelector(".o-motivo");
@@ -376,6 +505,9 @@
       const item = CAT.motivos_no_trabaja.find(entry => String(entry.id) === optionItem.value);
       optionItem.dataset.codigo = item.codigo;
       optionItem.dataset.nombre = item.nombre;
+    });
+    selMotivo.addEventListener("change", () => {
+      if (selMotivo.value) selTrabaja.value = "2";
     });
     selMotivo.addEventListener("focus", () => {
       Array.from(selMotivo.options).forEach(optionItem => {
@@ -431,7 +563,10 @@
   });
 
   // ---------- Botón agregar fila ----------
-  $("#btn-add-persona").addEventListener("click", () => addPersonaRow());
+  $("#btn-add-persona").addEventListener("click", () => {
+    addPersonaRow();
+    tbodyPersonas.querySelector(".persona-row:last-child .f-nombre")?.focus();
+  });
 
   $("#btn-promedio-ingresos").addEventListener("click", () => {
     const personas = $$("#tbody-personas .persona-row").filter(tr =>
@@ -541,10 +676,11 @@
   function collectEstrategias() {
     const out = [];
     $$("#tbody-estrategias tr").forEach((tr) => {
-      const selected = tr.querySelector("input[type=radio]:checked");
+      const selected = tr.querySelector("input[type=checkbox]:checked");
+      if (!selected) return;
       out.push({
         estrategia_id: Number(tr.dataset.id),
-        aplica: selected ? selected.value === "true" : false,
+        aplica: selected.value === "true",
       });
     });
     return out;
@@ -756,6 +892,7 @@
             query.set("return_to", RETURN_TO);
             window.location.assign(`/nucleos/${data.id}?${query.toString()}`);
           } else {
+            query.set("codigo_guardado", data.codigo);
             window.location.assign(`/nucleos/nuevo?${query.toString()}`);
           }
         } catch (ex) {

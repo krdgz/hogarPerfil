@@ -19,6 +19,7 @@ from ..services.nucleo_service import (
     listar_nucleos,
     listar_perfiles_vulnerabilidad,
     obtener_nucleo,
+    obtener_ultimo_codigo_nucleo,
 )
 
 router = APIRouter(prefix="/nucleos", tags=["nucleos"])
@@ -68,6 +69,7 @@ async def formulario_nuevo(
     request: Request,
     return_to: str = "",
     guardado: bool = False,
+    codigo_guardado: str = "",
     db: AsyncSession = Depends(get_db),
 ):
     cat = await cargar_catalogos(db)
@@ -81,6 +83,7 @@ async def formulario_nuevo(
             "nucleo": None,
             "return_to": _safe_list_return_to(return_to),
             "guardado": guardado,
+            "codigo_guardado": codigo_guardado,
         },
     )
 
@@ -228,6 +231,11 @@ async def formulario_consulta(
 @router.get("/api/listado", response_class=JSONResponse)
 async def api_listado(db: AsyncSession = Depends(get_db)):
     return await listar_nucleos(db)
+
+
+@router.get("/api/ultimo-codigo", response_class=JSONResponse)
+async def api_ultimo_codigo(db: AsyncSession = Depends(get_db)):
+    return {"codigo": await obtener_ultimo_codigo_nucleo(db)}
 
 
 @router.get("/api/{nucleo_id}")

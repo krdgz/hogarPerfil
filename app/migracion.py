@@ -14,12 +14,19 @@ load_dotenv(BASE_DIR / ".env")
 # =========================================================
 # CONFIGURACION
 # =========================================================
+db_password = os.getenv("POSTGRES_PASSWORD", "")
+if not db_password:
+    raise RuntimeError(
+        "Falta POSTGRES_PASSWORD en el archivo .env local. "
+        "Crea un .env con la contraseña real de PostgreSQL."
+    )
+
 DB_CONFIG = {
     "host": os.getenv("POSTGRES_HOST", "localhost"),
     "port": int(os.getenv("POSTGRES_PORT", "5432")),
     "dbname": os.getenv("POSTGRES_DB", "hogares"),
     "user": os.getenv("POSTGRES_USER", "postgres"),
-    "password": os.getenv("POSTGRES_PASSWORD", ""),
+    "password": db_password,
 }
 
 EXCEL_PATH = "forms.xlsx"

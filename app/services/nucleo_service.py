@@ -255,7 +255,7 @@ async def _guardar_nucleo(db: AsyncSession, data: NucleoIn, hogar: m.HogarNucleo
                 db.add(ocup)
 
     for g in data.gastos:
-        if g.monto_cup and g.monto_cup > 0:
+        if (g.monto_cup and g.monto_cup > 0) or g.orden_importancia is not None:
             db.add(m.GastoHogar(
                 hogar_id=hogar.id,
                 tipo_gasto_id=g.tipo_gasto_id,
@@ -291,6 +291,14 @@ async def crear_nucleo(db: AsyncSession, data: NucleoIn) -> m.HogarNucleo:
     return await _guardar_nucleo(db, data)
 
 
+async def obtener_ultimo_codigo_nucleo(db: AsyncSession) -> str | None:
+    return await db.scalar(
+        select(m.HogarNucleo.codigo)
+        .order_by(m.HogarNucleo.id.desc())
+        .limit(1)
+    )
+
+
 def _consulta_listado_nucleos(
     busqueda: str | None = None,
     consejo_id: int | None = None,
@@ -306,7 +314,7 @@ def _consulta_listado_nucleos(
         .join(m.Provincia, m.HogarNucleo.provincia_id == m.Provincia.id)
         .join(m.Municipio, m.HogarNucleo.municipio_id == m.Municipio.id)
         .join(m.ConsejoPopular, m.HogarNucleo.consejo_popular_id == m.ConsejoPopular.id)
-        .order_by(m.HogarNucleo.codigo)
+        .order_by(m.HogarNucleo.id.desc())
     )
     if consejo_id is not None:
         stmt = stmt.where(m.HogarNucleo.consejo_popular_id == consejo_id)

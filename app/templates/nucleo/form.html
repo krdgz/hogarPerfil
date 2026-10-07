@@ -11,12 +11,12 @@
   </div>
   <div class="codigo-nucleo">
     <label for="codigo">Código del núcleo:</label>
-    <input id="codigo" type="text" class="f-codigo" placeholder="3104201" />
+    <input id="codigo" type="text" class="f-codigo" placeholder="" autocomplete="off" />
   </div>
 </div>
 
 {% if guardado %}
-<p class="save-notice" role="status" aria-live="polite">El núcleo se guardó correctamente.</p>
+<p class="save-notice" role="status" aria-live="polite">El núcleo{% if codigo_guardado %} con código {{ codigo_guardado }}{% endif %} se guardó correctamente.</p>
 {% endif %}
 
 <div class="actions form-actions" id="form-actions-top">
@@ -222,8 +222,8 @@
       {% for e in catalogos.estrategias %}
       <tr data-id="{{ e.id }}">
         <td>{{ e.codigo }} - {{ e.nombre }}</td>
-        <td class="center choice-cell"><label class="estrategia-choice"><input type="radio" name="estr_{{ e.id }}" value="false" aria-label="No: {{ e.nombre }}" /></label></td>
-        <td class="center choice-cell"><label class="estrategia-choice"><input type="radio" name="estr_{{ e.id }}" value="true" aria-label="Sí: {{ e.nombre }}" /></label></td>
+        <td class="center choice-cell"><label class="estrategia-choice"><input type="checkbox" name="estr_{{ e.id }}" value="false" aria-label="No: {{ e.nombre }}" /></label></td>
+        <td class="center choice-cell"><label class="estrategia-choice"><input type="checkbox" name="estr_{{ e.id }}" value="true" aria-label="Sí: {{ e.nombre }}" /></label></td>
       </tr>
       {% endfor %}
     </tbody>

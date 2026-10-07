@@ -23,6 +23,12 @@ def get_database_url() -> str:
     db_port = os.getenv("POSTGRES_PORT", "5432")
     db_name = os.getenv("POSTGRES_DB", "hogares")
 
+    if not db_password:
+        raise RuntimeError(
+            "Falta POSTGRES_PASSWORD en el archivo .env local. "
+            "Crea un .env con la contraseña real de PostgreSQL."
+        )
+
     return (
         f"postgresql+asyncpg://{quote_plus(db_user)}:"
         f"{quote_plus(db_password)}@{db_host}:{db_port}/{db_name}"
