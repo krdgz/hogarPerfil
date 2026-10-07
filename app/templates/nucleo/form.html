@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}{% if modo == 'consulta' %}Núcleo {{ nucleo.codigo }}{% else %}Formulario de Núcleo{% endif %}{% endblock %}
+
+{% block content %}
+
+<!-- ====== Cabecera: código núcleo arriba-derecha ====== -->
+<div class="header-row">
+  <div>
+    <p class="eyebrow">{% if modo == 'consulta' %}Consulta del núcleo{% else %}Nuevo registro{% endif %}</p>
+    <h1>Instrumento para la caracterización de hogares</h1>
+  </div>
+  <div class="codigo-nucleo">
+    <label for="codigo">Código del núcleo:</label>
+    <input id="codigo" type="text" class="f-codigo" placeholder="3104201" />
+  </div>
+</div>
+
+{% if guardado %}
+<p class="save-notice" role="status" aria-live="polite">El núcleo se guardó correctamente.</p>
+{% endif %}
+
+<div class="actions form-actions" id="form-actions-top">
+  <a class="btn" id="btn-cerrar-top" href="{{ return_to }}">Cerrar</a>
+  {% if modo == 'consulta' %}
+  <button type="button" class="btn" id="btn-editar-top">Editar</button>
+  <button type="button" class="btn btn-danger" id="btn-eliminar-top">Eliminar</button>
+  <button type="button" class="btn" id="btn-cancelar-edicion-top" hidden>Salir de edición</button>
+  {% endif %}
+  <button type="button" class="btn btn-primary" id="btn-guardar-top" {% if modo == 'consulta' %}hidden{% endif %}>Guardar núcleo</button>
+</div>
+
+<!-- ====== Datos del entrevistador y ubicación ====== -->
+<section class="block">
+  <div class="grid-4">
+    <label>Fecha de la entrevista
+      <input type="date" id="fecha_entrevista" />
+    </label>
+    <label>Nombre del entrevistador
+      <input type="text" id="entrevistador_nombre" />
+    </label>
+  </div>
+
+  <div class="grid-4">
+    <label>Provincia
+      <select id="provincia_id">
+        <option value="">-- Seleccione --</option>
+        {% for p in catalogos.provincias %}
+          <option value="{{ p.id }}">{{ p.codigo }} - {{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Municipio
+      <select id="municipio_id"></select>
+    </label>
+    <label>Consejo Popular
+      <select id="consejo_popular_id"></select>
+    </label>
+    <label>Circunscripción
+      <input type="text" id="circunscripcion_codigo" list="circunscripciones-list" autocomplete="off" disabled />
+      <datalist id="circunscripciones-list"></datalist>
+    </label>
+  </div>
+
+  <h2>1. Datos generales</h2>
+  <div class="grid-3">
+    <label class="span-2">Dirección
+      <input type="text" id="direccion" />
+    </label>
+    <label>Número de bodega
+      <input type="text" id="bodega_codigo" list="bodegas-list" inputmode="numeric" autocomplete="off" disabled />
+      <datalist id="bodegas-list"></datalist>
+    </label>
+  </div>
+
+  <div class="grid-3">
+    <fieldset class="zona">
+      <legend>Zona de residencia</legend>
+      {% for z in catalogos.zonas_residencia %}
+        <label class="chk">
+          <input type="radio" name="zona_residencia" value="{{ z.id }}" />
+          {{ z.nombre }}
+        </label>
+      {% endfor %}
+    </fieldset>
+  </div>
+  <label class="observaciones-field">Observaciones
+    <textarea id="observaciones" rows="3"></textarea>
+  </label>
+</section>
+
+<!-- ====== SECCIÓN 2: Personas ====== -->
+<section class="block">
+  <h2>2. Información general del hogar de las personas de perfiles seleccionados</h2>
+  <div class="table-scroll">
+    <table class="tabla-personas" id="tabla-personas">
+      <thead>
+        <tr>
+          <th class="col-num">No.</th>
+          <th class="col-perfil">Perfil</th>
+          <th>Nombre y Apellidos</th>
+          <th>C. Identidad</th>
+          <th>Color de piel</th>
+          <th>Parentesco</th>
+          <th>Sexo</th>
+          <th>Escolaridad</th>
+          <th>Vínculo SNE</th>
+          <th>Reg. consumidor</th>
+          <th>Fuente ingreso</th>
+          <th>Ingreso CUP</th>
+          <th class="col-x"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody-personas"></tbody>
+    </table>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn" id="btn-add-persona">+ Agregar fila</button>
+  </div>
+</section>
+
+<!-- ====== SECCIÓN 3: Ocupación ====== -->
+<section class="block">
+  <h2>3. Ocupación de los miembros del hogar</h2>
+  <div class="table-scroll">
+    <table class="tabla-ocupacion" id="tabla-ocupacion">
+      <thead>
+        <tr>
+          <th class="col-num">No. miembro</th>
+          <th>¿Usted trabaja?</th>
+          <th>Sector estatal</th>
+          <th>Empresa mixta</th>
+          <th>Sector agropecuario</th>
+          <th>Sector no estatal</th>
+          <th>Trabajos informales</th>
+          <th>Motivo por no trabajar (si no trabaja)</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-ocupacion"></tbody>
+    </table>
+  </div>
+
+  <div class="procede-wrap">
+    <label for="procede_ayuda">¿Procede o no procede?</label>
+    <select id="procede_ayuda">
+      <option value="">--</option>
+      <option value="true">Procede</option>
+      <option value="false">No procede</option>
+    </select>
+    <button type="button" class="btn" id="btn-promedio-ingresos">Calcular salario promedio</button>
+    <span id="resultado-promedio-ingresos" role="status" aria-live="polite"></span>
+  </div>
+</section>
+
+<!-- ====== SECCIÓN 4: Gastos ====== -->
+<section class="block">
+  <h2>4. Gastos del hogar</h2>
+  <table class="tabla-gastos">
+    <thead>
+      <tr>
+        <th>Destino de los gastos principales</th>
+        <th>Monto en CUP</th>
+        <th>Orden de importancia (1-3)</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-gastos">
+      {% for g in catalogos.tipos_gasto %}
+      <tr data-id="{{ g.id }}">
+        <td>{{ g.codigo }} - {{ g.nombre }}</td>
+        <td><input type="number" step="0.01" min="0" class="g-monto" /></td>
+        <td><input type="number" min="1" max="3" class="g-orden" /></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<!-- ====== SECCIÓN 5: Diversidad alimentaria ====== -->
+<section class="block">
+  <h2>5. Diversidad alimentaria del hogar</h2>
+  <table class="tabla-diversidad">
+    <thead>
+      <tr>
+        <th>Grupo de alimentos</th>
+        <th>¿Le gusta? (Sí/No)
+          <span class="bulk-choice">
+            <button type="button" class="btn-bulk" data-fill-target=".d-gusta" data-fill-value="Si">Sí todos</button>
+            <button type="button" class="btn-bulk" data-fill-target=".d-gusta" data-fill-value="No">No todos</button>
+          </span>
+        </th>
+        <th>Lo encontró en el mercado (Sí/No)
+          <span class="bulk-choice">
+            <button type="button" class="btn-bulk" data-fill-target=".d-mercado" data-fill-value="Si">Sí todos</button>
+            <button type="button" class="btn-bulk" data-fill-target=".d-mercado" data-fill-value="No">No todos</button>
+          </span>
+        </th>
+        <th>Frecuencia semanal (0-7)</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-diversidad">
+      {% for gr in catalogos.grupos_alimento %}
+      <tr data-id="{{ gr.id }}">
+        <td>{{ gr.codigo }} - {{ gr.nombre }}</td>
+        <td><input type="text" class="si-no d-gusta" maxlength="2" /></td>
+        <td><input type="text" class="si-no d-mercado" maxlength="2" /></td>
+        <td><input type="number" min="0" max="7" class="d-frec" /></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>5.2 Estrategias de afrontamiento por escasez de alimentos o dinero en los últimos 30 días</h3>
+  <table class="tabla-estrategias">
+    <thead>
+      <tr>
+        <th>Estrategia</th>
+        <th>NO <button type="button" class="btn-bulk" data-fill-strategies="false">Marcar todas</button></th>
+        <th>SÍ <button type="button" class="btn-bulk" data-fill-strategies="true">Marcar todas</button></th>
+      </tr>
+    </thead>
+    <tbody id="tbody-estrategias">
+      {% for e in catalogos.estrategias %}
+      <tr data-id="{{ e.id }}">
+        <td>{{ e.codigo }} - {{ e.nombre }}</td>
+        <td class="center choice-cell"><label class="estrategia-choice"><input type="radio" name="estr_{{ e.id }}" value="false" aria-label="No: {{ e.nombre }}" /></label></td>
+        <td class="center choice-cell"><label class="estrategia-choice"><input type="radio" name="estr_{{ e.id }}" value="true" aria-label="Sí: {{ e.nombre }}" /></label></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<div class="actions form-actions" id="form-actions">
+  <a class="btn" id="btn-cerrar" href="{{ return_to }}">Cerrar</a>
+  {% if modo == 'consulta' %}
+  <button type="button" class="btn" id="btn-editar">Editar</button>
+  <button type="button" class="btn btn-danger" id="btn-eliminar">Eliminar</button>
+  <button type="button" class="btn" id="btn-cancelar-edicion" hidden>Salir de edición</button>
+  {% endif %}
+  <button type="button" class="btn btn-primary" id="btn-guardar" {% if modo == 'consulta' %}hidden{% endif %}>Guardar núcleo</button>
+  <span id="msg-status"></span>
+</div>
+
+<!-- ====== Datos para JS ====== -->
+<script id="catalogos-data" type="application/json">{{ catalogos_json | tojson | safe }}</script>
+<script id="nucleo-data" type="application/json">{{ nucleo | tojson | safe }}</script>
+<script id="form-mode" type="application/json">{{ modo | tojson | safe }}</script>
+<script id="return-to-data" type="application/json">{{ return_to | tojson | safe }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/form.js') }}?v={{ static_version() }}"></script>
+{% endblock %}

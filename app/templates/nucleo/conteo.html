@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Conteo por consejos populares{% endblock %}
+
+{% block content %}
+<header class="list-header">
+  <div>
+    <p class="eyebrow">Caracterización de hogares</p>
+    <h1>Conteo por consejos populares</h1>
+  </div>
+  <a class="btn" href="{{ return_to }}">Volver al listado</a>
+</header>
+
+<form class="count-toolbar" method="get" action="{{ url_for('pagina_conteo_personas') }}">
+  <input type="hidden" name="return_to" value="{{ return_to }}" />
+  <label class="profile-field">Perfil de vulnerabilidad
+    <select name="perfil_id" onchange="this.form.submit()">
+      <option value="">Selecciona un perfil</option>
+      {% for perfil in perfiles %}
+      <option value="{{ perfil.id }}" {% if perfil_id == perfil.id %}selected{% endif %}>{{ perfil.codigo }} - {{ perfil.nombre }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <noscript><button class="btn" type="submit">Ver conteo</button></noscript>
+</form>
+
+<div class="table-scroll">
+  <table class="tabla-conteo">
+    <thead>
+      <tr>
+        <th rowspan="2">Consejo Popular</th>
+        <th rowspan="2">Núcleos</th>
+        <th rowspan="2">Personas</th>
+        <th class="status-group" colspan="3">Estado de procedencia</th>
+        <th rowspan="2">Núcleos con el perfil</th>
+        <th rowspan="2">Personas con el perfil</th>
+        {% if perfil_id == 5 %}
+        <th rowspan="2">0-3 años</th>
+        <th rowspan="2">0-5 años</th>
+        {% elif perfil_id in [6, 7] %}
+        <th rowspan="2">0-7 años</th>
+        <th rowspan="2">8-13 años</th>
+        {% endif %}
+      </tr>
+      <tr>
+        <th class="status-procede status-start">Si</th>
+        <th class="status-no-procede">No</th>
+        <th class="status-pendiente status-end">Pendiente</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fila in conteos %}
+      <tr>
+        <td>{{ fila.consejo }}</td>
+        <td>{{ fila.nucleos }}</td>
+        <td>{{ fila.personas }}</td>
+        <td class="status-procede status-start">{{ fila.nucleos_proceden }}</td>
+        <td class="status-no-procede">{{ fila.nucleos_no_proceden }}</td>
+        <td class="status-pendiente status-end">{{ fila.nucleos_sin_procesar }}</td>
+        <td>{% if perfil_id %}{{ fila.nucleos_perfil }}{% else %}—{% endif %}</td>
+        <td>{% if perfil_id %}{{ fila.personas_perfil }}{% else %}—{% endif %}</td>
+        {% if perfil_id == 5 %}
+        <td>{{ fila.personas_perfil_0_3 or 0 }}</td>
+        <td>{{ fila.personas_perfil_0_5 or 0 }}</td>
+        {% elif perfil_id in [6, 7] %}
+        <td>{{ fila.personas_perfil_0_7 or 0 }}</td>
+        <td>{{ fila.personas_perfil_8_13 or 0 }}</td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr class="empty-row"><td colspan="10">No hay consejos populares registrados.</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if conteos %}
+    <tfoot>
+      <tr>
+        <th>Total</th>
+        <th>{{ total_nucleos }}</th>
+        <th>{{ total_personas }}</th>
+        <th class="status-procede status-start">{{ total_nucleos_proceden }}</th>
+        <th class="status-no-procede">{{ total_nucleos_no_proceden }}</th>
+        <th class="status-pendiente status-end">{{ total_nucleos_sin_procesar }}</th>
+        <th>{% if perfil_id %}{{ total_nucleos_perfil }}{% else %}—{% endif %}</th>
+        <th>{% if perfil_id %}{{ total_personas_perfil }}{% else %}—{% endif %}</th>
+        {% if perfil_id == 5 %}
+        <th>{{ total_edad_0_3 if total_edad_0_3 is not none else '—' }}</th>
+        <th>{{ total_edad_0_5 if total_edad_0_5 is not none else '—' }}</th>
+        {% elif perfil_id in [6, 7] %}
+        <th>{{ total_edad_0_7 if total_edad_0_7 is not none else '—' }}</th>
+        <th>{{ total_edad_8_13 if total_edad_8_13 is not none else '—' }}</th>
+        {% endif %}
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+{% endblock %}

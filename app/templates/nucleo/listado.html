@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Núcleos registrados{% endblock %}
+
+{% block content %}
+<header class="list-header">
+  <div>
+    <p class="eyebrow">Caracterización de hogares</p>
+    <h1>Núcleos registrados</h1>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('formulario_nuevo') }}?return_to={{ return_to|urlencode }}">+ Crear núcleo</a>
+</header>
+
+<form class="list-toolbar" method="get" action="{{ url_for('pagina_listado') }}">
+  <label class="search-field">Buscar núcleo
+    <input name="q" type="search" value="{{ busqueda }}" placeholder="Código, dirección, ubicación o integrante" autocomplete="off" />
+  </label>
+  <label class="council-field">Consejo Popular
+    <select name="consejo_id">
+      <option value="">Todos los consejos</option>
+      {% for consejo in consejos %}
+      <option value="{{ consejo.id }}" {% if consejo_id == consejo.id %}selected{% endif %}>{{ consejo.nombre }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="profile-field">Perfil de vulnerabilidad
+    <select name="perfil_id">
+      <option value="">Todos los perfiles</option>
+      {% for perfil in perfiles %}
+      <option value="{{ perfil.id }}" {% if perfil_id == perfil.id %}selected{% endif %}>{{ perfil.codigo }} - {{ perfil.nombre }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="btn" type="submit">Buscar</button>
+  <span class="list-count">Mostrando {{ desde }}–{{ hasta }} de {{ total }} núcleos</span>
+  <a class="btn btn-small" href="{{ url_for('pagina_conteo_personas') }}?return_to={{ return_to|urlencode }}">Contar personas</a>
+</form>
+
+<div class="table-scroll">
+  <table class="tabla-listado" id="tabla-listado">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Provincia</th>
+        <th>Municipio</th>
+        <th>Consejo Popular</th>
+        <th>Dirección</th>
+        <th>Integrantes</th>
+        <th>Perfil</th>
+        <th><span class="sr-only">Acciones</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for nucleo in nucleos %}
+      <tr>
+        <td class="codigo-cell">{{ nucleo.codigo }}</td>
+        <td>{{ nucleo.provincia }}</td>
+        <td>{{ nucleo.municipio }}</td>
+        <td>{{ nucleo.consejo_popular }}</td>
+        <td>{{ nucleo.direccion or '—' }}</td>
+        <td class="integrantes-cell">
+          {% for persona in nucleo.personas %}
+          <div class="integrante">
+            <span>{{ persona.nombre_apellidos }}</span>
+            <span class="integrante-cedula">CI {{ persona.cedula }}</span>
+          </div>
+          {% else %}
+          <span class="muted">Sin personas registradas</span>
+          {% endfor %}
+        </td>
+        <td class="perfil-cell">{{ nucleo.perfil_resumen }}</td>
+        <td><a class="btn btn-small" href="{{ url_for('formulario_consulta', nucleo_id=nucleo.id) }}?return_to={{ return_to|urlencode }}">Abrir</a></td>
+      </tr>
+      {% else %}
+      <tr class="empty-row"><td colspan="8">{% if busqueda or consejo_id or perfil_id %}No hay núcleos que coincidan con los filtros.{% else %}Todavía no hay núcleos registrados.{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if total_paginas > 1 %}
+<nav class="list-pagination" aria-label="Paginación de núcleos">
+  {% if pagina > 1 %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina - 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}" aria-label="Página anterior">Anterior</a>{% endif %}
+  <span>Página {{ pagina }} de {{ total_paginas }}</span>
+  {% if pagina < total_paginas %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina + 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}" aria-label="Página siguiente">Siguiente</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

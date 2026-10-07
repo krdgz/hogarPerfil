@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>{% block title %}Caracterización de Hogares{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/form.css') }}?v={{ static_version() }}" />
+</head>
+<body>
+  <div class="page">
+    {% block content %}{% endblock %}
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
