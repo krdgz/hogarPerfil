@@ -157,6 +157,7 @@ th { background: #e6ebf2; font-weight: 600; text-align: center; }
 textarea { width: 100%; padding: 7px 8px; border: 1px solid #aab; border-radius: 3px; font: inherit; resize: vertical; }
 
 #msg-status { font-size: 12px; }
+#draft-status { color: #63716d; font-size: 11px; }
 .save-notice {
   margin: 12px 0 0;
   padding: 10px 12px;

@@ -762,6 +762,158 @@
     });
   }
 
+  const claveBorrador = `nucleo-form-borrador-v1-${NUCLEO ? NUCLEO.id : "nuevo"}`;
+  const estadoBorrador = $("#draft-status");
+  let borradorActivo = !NUCLEO;
+  let borradorSucio = false;
+  let restaurandoBorrador = false;
+  let temporizadorBorrador = null;
+  let guardandoBorrador = false;
+  let dbBorradoresPromise = null;
+
+  function controlesFormulario() {
+    return $$(".page input, .page select, .page textarea");
+  }
+
+  function abrirDbBorradores() {
+    if (!dbBorradoresPromise) {
+      dbBorradoresPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open("hogar-formularios", 1);
+        request.onupgradeneeded = () => request.result.createObjectStore("borradores");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+    return dbBorradoresPromise;
+  }
+
+  async function leerBorrador() {
+    const db = await abrirDbBorradores();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction("borradores", "readonly");
+      const request = transaction.objectStore("borradores").get(claveBorrador);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function escribirBorrador(borrador) {
+    const db = await abrirDbBorradores();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction("borradores", "readwrite");
+      transaction.objectStore("borradores").put(borrador, claveBorrador);
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
+  async function borrarBorrador() {
+    const db = await abrirDbBorradores();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction("borradores", "readwrite");
+      transaction.objectStore("borradores").delete(claveBorrador);
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
+  async function guardarBorrador() {
+    if (!borradorActivo || !borradorSucio || restaurandoBorrador || guardandoBorrador) return;
+    guardandoBorrador = true;
+    borradorSucio = false;
+    const borrador = {
+      version: 1,
+      personas: tbodyPersonas.querySelectorAll(".persona-row").length,
+      controles: controlesFormulario().map(control => ({
+        value: control.value,
+        checked: control instanceof HTMLInputElement ? control.checked : undefined,
+      })),
+    };
+    try {
+      await escribirBorrador(borrador);
+      estadoBorrador.textContent = `Borrador guardado localmente a las ${new Date().toLocaleTimeString()}`;
+    } catch {
+      borradorSucio = false;
+      estadoBorrador.textContent = "No se pudo guardar el borrador en este navegador.";
+    } finally {
+      guardandoBorrador = false;
+      if (borradorSucio) temporizadorBorrador = setTimeout(guardarBorrador, 800);
+    }
+  }
+
+  async function restaurarBorrador() {
+    let borrador;
+    try {
+      borrador = await leerBorrador();
+    } catch {
+      estadoBorrador.textContent = "No se pudo acceder al almacenamiento de borradores.";
+      return;
+    }
+    if (!borrador || borrador.version !== 1 || !Array.isArray(borrador.controles)) return;
+
+    restaurandoBorrador = true;
+    const cantidadPersonas = Math.max(0, Number(borrador.personas) || 0);
+    while (tbodyPersonas.querySelectorAll(".persona-row").length < cantidadPersonas) addPersonaRow();
+    while (tbodyPersonas.querySelectorAll(".persona-row").length > cantidadPersonas) {
+      tbodyPersonas.lastElementChild.remove();
+    }
+    syncOcupacion();
+
+    const selects = new Map(controlesFormulario()
+      .filter(control => control instanceof HTMLSelectElement && control.id)
+      .map(control => [control.id, control]));
+    const provincia = selects.get("provincia_id");
+    const municipio = selects.get("municipio_id");
+    const consejo = selects.get("consejo_popular_id");
+    const valoresGuardados = new Map(controlesFormulario().map((control, index) => [control, borrador.controles[index]]));
+    if (provincia) {
+      provincia.value = valoresGuardados.get(provincia)?.value || "";
+      provincia.dispatchEvent(new Event("change"));
+    }
+    if (municipio) {
+      municipio.value = valoresGuardados.get(municipio)?.value || "";
+      municipio.dispatchEvent(new Event("change"));
+    }
+    if (consejo) {
+      consejo.value = valoresGuardados.get(consejo)?.value || "";
+      consejo.dispatchEvent(new Event("change"));
+    }
+
+    controlesFormulario().forEach((control, index) => {
+      const valor = borrador.controles[index];
+      if (!valor) return;
+      control.value = valor.value ?? "";
+      if (control instanceof HTMLInputElement) control.checked = Boolean(valor.checked);
+    });
+    $$(".si-no").forEach(normalizaSiNo);
+    restaurandoBorrador = false;
+    borradorSucio = false;
+    estadoBorrador.textContent = "Borrador anterior recuperado de este navegador.";
+  }
+
+  function programarGuardadoBorrador() {
+    borradorSucio = true;
+    clearTimeout(temporizadorBorrador);
+    temporizadorBorrador = setTimeout(guardarBorrador, 800);
+  }
+
+  document.addEventListener("input", event => {
+    if (!borradorActivo || !event.target.matches(".page input, .page select, .page textarea")) return;
+    programarGuardadoBorrador();
+  });
+  document.addEventListener("change", event => {
+    if (!borradorActivo || !event.target.matches(".page input, .page select, .page textarea")) return;
+    programarGuardadoBorrador();
+  });
+  document.addEventListener("click", event => {
+    if (!borradorActivo || !event.target.closest("#btn-add-persona, .btn-remove, [data-fill-target], [data-fill-strategies]")) return;
+    programarGuardadoBorrador();
+  });
+  window.setInterval(guardarBorrador, 15000);
+  window.addEventListener("pagehide", guardarBorrador);
+
   function establecerSoloLectura(lectura) {
     document.querySelectorAll(".page input, .page select, .page textarea, #btn-add-persona, .btn-remove, .btn-bulk")
       .forEach(control => { control.disabled = lectura; });
@@ -795,13 +947,25 @@
       const primary = $(primaryId);
       const secondary = $(secondaryId);
       [primary, secondary].filter(Boolean).forEach(el => {
-        el.addEventListener("click", () => {
-          if (primaryId.includes("editar")) return establecerSoloLectura(false);
-          if (primaryId.includes("cancelar")) return window.location.reload();
+        el.addEventListener("click", async () => {
+          if (primaryId.includes("editar")) {
+            await restaurarBorrador();
+            borradorActivo = true;
+            return establecerSoloLectura(false);
+          }
+          if (primaryId.includes("cancelar")) {
+            borradorActivo = false;
+            await borrarBorrador().catch(() => {});
+            return window.location.reload();
+          }
           if (primaryId.includes("eliminar")) {
             if (!window.confirm(`¿Eliminar el núcleo ${NUCLEO.codigo} y todos sus datos asociados? Esta acción no se puede deshacer.`)) return;
             return fetch(`/nucleos/${NUCLEO.id}`, { method: "DELETE" }).then(res => {
-              if (res.ok) window.location.assign(RETURN_TO);
+              if (res.ok) {
+                borradorActivo = false;
+                borrarBorrador().catch(() => {});
+                window.location.assign(RETURN_TO);
+              }
               else window.alert("No se pudo eliminar el núcleo. Intente nuevamente.");
             });
           }
@@ -809,6 +973,7 @@
       });
     });
   }
+  if (!NUCLEO) restaurarBorrador();
 
   // ---------- Envío ----------
   ["#btn-guardar", "#btn-guardar-top"].forEach(id => {
@@ -887,6 +1052,9 @@
             return;
           }
           const data = await res.json();
+          borradorActivo = false;
+          clearTimeout(temporizadorBorrador);
+          await borrarBorrador().catch(() => {});
           const query = new URLSearchParams({ guardado: "true" });
           if (NUCLEO) {
             query.set("return_to", RETURN_TO);
