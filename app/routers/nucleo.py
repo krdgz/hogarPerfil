@@ -143,6 +143,7 @@ async def pagina_conteo_personas(
     request: Request,
     perfil_id: str = "",
     return_to: str = "",
+    scroll_y: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
     selected_profile_id = _optional_positive_id(perfil_id, "perfil_id")
@@ -177,7 +178,12 @@ async def pagina_conteo_personas(
             "request": request,
             "perfiles": perfiles,
             "perfil_id": selected_profile_id,
+            "perfil_seleccionado": next(
+                (perfil for perfil in perfiles if perfil["id"] == selected_profile_id),
+                None,
+            ),
             "return_to": _safe_list_return_to(return_to),
+            "scroll_y": scroll_y,
             "conteos": conteos,
             "total_nucleos": sum(row["nucleos"] for row in conteos),
             "total_personas": sum(row["personas"] for row in conteos),
