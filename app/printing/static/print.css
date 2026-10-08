@@ -1,6 +1,6 @@
 @page {
   size: landscape;
-  margin: 8mm 8mm 10mm;
+  margin: 8mm 8mm 13mm;
 }
 
 * { box-sizing: border-box; }
@@ -30,7 +30,7 @@ tfoot { display: table-row-group; }
   .print-footer {
     position: fixed;
     right: 0;
-    bottom: -6mm;
+    bottom: 2mm;
     left: 0;
     display: flex;
     justify-content: space-between;
