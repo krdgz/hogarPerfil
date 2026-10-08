@@ -50,14 +50,14 @@ class PersonaIn(BaseModel):
 class GastoIn(BaseModel):
     tipo_gasto_id: int
     monto_cup: Decimal = Decimal("0")
-    orden_importancia: Optional[int] = None
+    orden_importancia: Optional[int] = Field(default=None, ge=1, le=3)
 
 
 class DiversidadIn(BaseModel):
     grupo_alimento_id: int
     gusta: Optional[bool] = None
     encontrado_en_mercado: Optional[bool] = None
-    frecuencia_semanal_dias: int = 0
+    frecuencia_semanal_dias: int = Field(default=0, ge=0, le=7)
 
 
 class EstrategiaIn(BaseModel):

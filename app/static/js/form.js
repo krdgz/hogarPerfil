@@ -983,6 +983,18 @@
         const status = $("#msg-status");
         status.textContent = "Enviando...";
 
+        const valorFueraDeRango = $$(".g-orden, .d-frec").find(input => !input.checkValidity());
+        if (valorFueraDeRango) {
+          const mensaje = valorFueraDeRango.matches(".g-orden")
+            ? "El orden de importancia debe ser un número entero entre 1 y 3."
+            : "La frecuencia semanal debe ser un número entero entre 0 y 7.";
+          status.textContent = mensaje;
+          status.style.color = "crimson";
+          valorFueraDeRango.focus();
+          valorFueraDeRango.reportValidity();
+          return;
+        }
+
         const zona = document.querySelector("input[name=zona_residencia]:checked");
 
         const personas = collectPersonas();
