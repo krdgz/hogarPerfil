@@ -506,7 +506,7 @@ async def listar_nucleos(
         persona_rows = (await db.execute(
             select(m.Persona.hogar_id, m.Persona.id, m.Persona.nombre_apellidos, m.Persona.cedula)
             .where(m.Persona.hogar_id.in_(hogar_ids))
-            .order_by(m.Persona.hogar_id, m.Persona.nombre_apellidos, m.Persona.cedula)
+            .order_by(m.Persona.hogar_id, m.Persona.id)
         )).all()
         for hogar_id, _, nombre, cedula in persona_rows:
             personas_por_hogar.setdefault(hogar_id, []).append({
