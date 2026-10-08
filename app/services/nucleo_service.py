@@ -33,9 +33,19 @@ def edad_en_anos_desde_ci(ci: str | None) -> int | None:
 def _edad_ci_sql_expr():
     current_year = func.extract("year", func.current_date())
     current_year_2dig = current_year % 100
-    year_part = func.substr(m.Persona.cedula, 1, 2).cast(Integer)
-    month_part = func.substr(m.Persona.cedula, 3, 2).cast(Integer)
-    day_part = func.substr(m.Persona.cedula, 5, 2).cast(Integer)
+    cedula_valida = m.Persona.cedula.op("~")(r"^[0-9]{11}$")
+    year_part = case(
+        (cedula_valida, func.substr(m.Persona.cedula, 1, 2).cast(Integer)),
+        else_=None,
+    )
+    month_part = case(
+        (cedula_valida, func.substr(m.Persona.cedula, 3, 2).cast(Integer)),
+        else_=None,
+    )
+    day_part = case(
+        (cedula_valida, func.substr(m.Persona.cedula, 5, 2).cast(Integer)),
+        else_=None,
+    )
     nacimiento_ano = case(
         (year_part <= current_year_2dig + 5, 2000 + year_part),
         else_=1900 + year_part,
@@ -68,7 +78,7 @@ def _edad_ci_sql_expr():
     fecha_nacimiento = case(
         (
             and_(
-                func.length(m.Persona.cedula) >= 11,
+                cedula_valida,
                 month_part.between(1, 12),
                 day_part.between(1, dia_maximo),
             ),
@@ -80,21 +90,20 @@ def _edad_ci_sql_expr():
 
 
 def _conteo_personas_edad_rango(perfil_id: int | None, edad_min: int, edad_max: int):
-    if perfil_id is None:
-        return func.null()
     edad = _edad_ci_sql_expr()
+    condiciones = [
+        edad.is_not(None),
+        edad >= edad_min,
+        edad <= edad_max,
+    ]
+    if perfil_id is not None:
+        condiciones.append(
+            m.PersonaVulnerabilidad.perfil_vulnerabilidad_id == perfil_id
+        )
     return func.count(
         func.distinct(
             case(
-                (
-                    and_(
-                        m.PersonaVulnerabilidad.perfil_vulnerabilidad_id == perfil_id,
-                        edad.is_not(None),
-                        edad >= edad_min,
-                        edad <= edad_max,
-                    ),
-                    m.Persona.id,
-                ),
+                (and_(*condiciones), m.Persona.id),
                 else_=None,
             )
         )
@@ -427,6 +436,8 @@ async def contar_por_consejo(db: AsyncSession, perfil_id: int | None = None) -> 
         columnas.extend([
             _conteo_personas_edad_rango(perfil_id, 0, 3).label("personas_perfil_0_3"),
             _conteo_personas_edad_rango(perfil_id, 0, 5).label("personas_perfil_0_5"),
+            _conteo_personas_edad_rango(None, 0, 3).label("personas_ci_0_3"),
+            _conteo_personas_edad_rango(None, 0, 5).label("personas_ci_0_5"),
         ])
     elif perfil_id in {6, 7}:
         columnas.extend([

@@ -82,8 +82,10 @@
           <th>Núcleos con {{ perfil_seleccionado.nombre }}</th>
           <th>Personas con {{ perfil_seleccionado.nombre }}</th>
           {% if perfil_id == 5 %}
-          <th>Personas de 0-3 años con el perfil</th>
-          <th>Personas de 0-5 años con el perfil</th>
+          <th>Personas de 0-3 años con perfil 5</th>
+          <th>Personas de 0-5 años con perfil 5</th>
+          <th>Personas de 0-3 años por carné, todas</th>
+          <th>Personas de 0-5 años por carné, todas</th>
           {% elif perfil_id in [6, 7] %}
           <th>Personas de 0-7 años con el perfil</th>
           <th>Personas de 8-13 años con el perfil</th>
@@ -99,13 +101,15 @@
           {% if perfil_id == 5 %}
           <td>{{ fila.personas_perfil_0_3 or 0 }}</td>
           <td>{{ fila.personas_perfil_0_5 or 0 }}</td>
+          <td>{{ fila.personas_ci_0_3 or 0 }}</td>
+          <td>{{ fila.personas_ci_0_5 or 0 }}</td>
           {% elif perfil_id in [6, 7] %}
           <td>{{ fila.personas_perfil_0_7 or 0 }}</td>
           <td>{{ fila.personas_perfil_8_13 or 0 }}</td>
           {% endif %}
         </tr>
         {% else %}
-        <tr class="empty-row"><td colspan="5">No hay consejos populares registrados.</td></tr>
+        <tr class="empty-row"><td colspan="7">No hay consejos populares registrados.</td></tr>
         {% endfor %}
       </tbody>
       {% if conteos %}
@@ -115,8 +119,10 @@
           <th>{{ total_nucleos_perfil }}</th>
           <th>{{ total_personas_perfil }}</th>
           {% if perfil_id == 5 %}
-          <th>{{ total_edad_0_3 if total_edad_0_3 is not none else '—' }}</th>
-          <th>{{ total_edad_0_5 if total_edad_0_5 is not none else '—' }}</th>
+          <th>{{ total_edad_perfil_0_3 if total_edad_perfil_0_3 is not none else '—' }}</th>
+          <th>{{ total_edad_perfil_0_5 if total_edad_perfil_0_5 is not none else '—' }}</th>
+          <th>{{ total_edad_ci_0_3 if total_edad_ci_0_3 is not none else '—' }}</th>
+          <th>{{ total_edad_ci_0_5 if total_edad_ci_0_5 is not none else '—' }}</th>
           {% elif perfil_id in [6, 7] %}
           <th>{{ total_edad_0_7 if total_edad_0_7 is not none else '—' }}</th>
           <th>{{ total_edad_8_13 if total_edad_8_13 is not none else '—' }}</th>

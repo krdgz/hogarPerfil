@@ -152,13 +152,23 @@ async def pagina_conteo_personas(
     if selected_profile_id not in profile_ids:
         selected_profile_id = None
     conteos = await contar_por_consejo(db, selected_profile_id)
-    total_edad_0_3 = (
+    total_edad_perfil_0_3 = (
         sum(row.get("personas_perfil_0_3") or 0 for row in conteos)
         if selected_profile_id == 5
         else None
     )
-    total_edad_0_5 = (
+    total_edad_perfil_0_5 = (
         sum(row.get("personas_perfil_0_5") or 0 for row in conteos)
+        if selected_profile_id == 5
+        else None
+    )
+    total_edad_ci_0_3 = (
+        sum(row.get("personas_ci_0_3") or 0 for row in conteos)
+        if selected_profile_id == 5
+        else None
+    )
+    total_edad_ci_0_5 = (
+        sum(row.get("personas_ci_0_5") or 0 for row in conteos)
         if selected_profile_id == 5
         else None
     )
@@ -200,8 +210,10 @@ async def pagina_conteo_personas(
                 if selected_profile_id is not None
                 else None
             ),
-            "total_edad_0_3": total_edad_0_3,
-            "total_edad_0_5": total_edad_0_5,
+            "total_edad_perfil_0_3": total_edad_perfil_0_3,
+            "total_edad_perfil_0_5": total_edad_perfil_0_5,
+            "total_edad_ci_0_3": total_edad_ci_0_3,
+            "total_edad_ci_0_5": total_edad_ci_0_5,
             "total_edad_0_7": total_edad_0_7,
             "total_edad_8_13": total_edad_8_13,
         },
