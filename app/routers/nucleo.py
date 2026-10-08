@@ -182,6 +182,7 @@ async def pagina_conteo_personas(
         if selected_profile_id in {6, 7}
         else None
     )
+    estadisticas_todos_perfiles = []
     return templates.TemplateResponse(
         "nucleo/conteo.html",
         {
@@ -216,6 +217,7 @@ async def pagina_conteo_personas(
             "total_edad_ci_0_5": total_edad_ci_0_5,
             "total_edad_0_7": total_edad_0_7,
             "total_edad_8_13": total_edad_8_13,
+            "estadisticas_todos_perfiles": estadisticas_todos_perfiles,
         },
     )
 

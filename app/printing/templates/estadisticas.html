@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Impresión de estadísticas</title>
+  <link rel="stylesheet" href="{{ request.url_for('print_static', path='print.css') }}" />
+</head>
+<body>
+  <header class="screen-header screen-only">
+    <div>
+      <p class="eyebrow">Caracterización de hogares</p>
+      <h1>Vista de impresión</h1>
+    </div>
+    <nav aria-label="Acciones">
+      <a href="/nucleos/conteo{% if perfil_id %}?perfil_id={{ perfil_id }}{% endif %}">Volver al conteo</a>
+      <button type="button" onclick="window.print()">Imprimir</button>
+    </nav>
+  </header>
+
+  {% macro tabla_general(datos) %}
+  <section class="print-section">
+    <h2>Estadística general</h2>
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2">Consejo Popular</th>
+          <th rowspan="2">Núcleos</th>
+          <th rowspan="2">Personas</th>
+          <th colspan="3">Estado de procedencia</th>
+        </tr>
+        <tr><th>Proceden</th><th>No proceden</th><th>Pendientes</th></tr>
+      </thead>
+      <tbody>
+        {% for fila in datos.filas %}
+        <tr>
+          <td>{{ fila.consejo }}</td>
+          <td>{{ fila.nucleos }}</td>
+          <td>{{ fila.personas }}</td>
+          <td>{{ fila.nucleos_proceden }}</td>
+          <td>{{ fila.nucleos_no_proceden }}</td>
+          <td>{{ fila.nucleos_sin_procesar }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th><th>{{ datos.total_nucleos }}</th><th>{{ datos.total_personas }}</th>
+          <th>{{ datos.total_proceden }}</th><th>{{ datos.total_no_proceden }}</th><th>{{ datos.total_pendientes }}</th>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+  {% endmacro %}
+
+  {% macro tabla_perfil(datos) %}
+  <section class="print-section">
+    <h2>Perfil {{ datos.perfil.codigo }} - {{ datos.perfil.nombre }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Consejo Popular</th>
+          <th>Núcleos con el perfil</th>
+          <th>Personas con el perfil</th>
+          {% if datos.perfil.id == 5 %}
+          <th>Personas de 0-3 años con perfil 5</th>
+          <th>Personas de 0-5 años con perfil 5</th>
+          <th>Personas de 0-3 años por carné, todas</th>
+          <th>Personas de 0-5 años por carné, todas</th>
+          {% elif datos.perfil.id in [6, 7] %}
+          <th>Personas de 0-7 años con el perfil</th>
+          <th>Personas de 8-13 años con el perfil</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in datos.filas %}
+        <tr>
+          <td>{{ fila.consejo }}</td>
+          <td>{{ fila.nucleos_perfil }}</td>
+          <td>{{ fila.personas_perfil }}</td>
+          {% if datos.perfil.id == 5 %}
+          <td>{{ fila.personas_perfil_0_3 or 0 }}</td>
+          <td>{{ fila.personas_perfil_0_5 or 0 }}</td>
+          <td>{{ fila.personas_ci_0_3 or 0 }}</td>
+          <td>{{ fila.personas_ci_0_5 or 0 }}</td>
+          {% elif datos.perfil.id in [6, 7] %}
+          <td>{{ fila.personas_perfil_0_7 or 0 }}</td>
+          <td>{{ fila.personas_perfil_8_13 or 0 }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th><th>{{ datos.total_nucleos }}</th><th>{{ datos.total_personas }}</th>
+          {% if datos.perfil.id == 5 %}
+          <th>{{ datos.total_edad_perfil_0_3 }}</th>
+          <th>{{ datos.total_edad_perfil_0_5 }}</th>
+          <th>{{ datos.total_edad_ci_0_3 }}</th>
+          <th>{{ datos.total_edad_ci_0_5 }}</th>
+          {% elif datos.perfil.id in [6, 7] %}
+          <th>{{ datos.total_edad_0_7 }}</th>
+          <th>{{ datos.total_edad_8_13 }}</th>
+          {% endif %}
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+  {% endmacro %}
+
+  <main>
+    {% if modo in ["completo", "todo", "general"] %}
+    {{ tabla_general(general) }}
+    {% endif %}
+    {% if resumen_seleccionado %}
+    {{ tabla_perfil(resumen_seleccionado) }}
+    {% elif modo == "perfil" %}
+    <p class="screen-only">Seleccione un perfil desde la página de conteo antes de imprimir.</p>
+    {% endif %}
+    {% for resumen in resumenes_perfiles %}
+    {{ tabla_perfil(resumen) }}
+    {% endfor %}
+  </main>
+
+  <footer class="print-footer">
+    <span>Ministerio del Trabajo y Seguridad Social</span>
+    <span>Directora: {{ directora_nombre or 'No configurada (DIRECTORA_NOMBRE)' }}</span>
+  </footer>
+</body>
+</html>

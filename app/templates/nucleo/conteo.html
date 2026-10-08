@@ -10,6 +10,8 @@
   <a class="btn" href="{{ return_to }}">Volver al listado</a>
 </header>
 
+<button class="btn" type="button" onclick="document.getElementById('dialogo-impresion').showModal()">Imprimir</button>
+
 <section class="count-section" aria-labelledby="titulo-conteo-general">
   <h2 id="titulo-conteo-general">Estadística general</h2>
 <div class="table-scroll">
@@ -136,6 +138,27 @@
   <p class="count-hint">Selecciona un perfil para ver sus núcleos y personas asociados.</p>
   {% endif %}
 </section>
+
+<button class="btn" type="button" onclick="document.getElementById('dialogo-impresion').showModal()">Imprimir</button>
+
+<dialog id="dialogo-impresion" aria-labelledby="titulo-dialogo-impresion">
+  <form method="get" action="{{ url_for('pagina_impresion_estadisticas') }}" target="_blank">
+    <h2 id="titulo-dialogo-impresion">Imprimir estadísticas</h2>
+    {% if perfil_id %}<input type="hidden" name="perfil_id" value="{{ perfil_id }}" />{% endif %}
+    <label for="modo-impresion">Qué imprimir</label>
+    <select id="modo-impresion" name="modo">
+      <option value="completo" selected>Todo: estadística general y los 9 perfiles</option>
+      <option value="general">Solo estadística general</option>
+      <option value="perfil" {% if not perfil_id %}disabled{% endif %}>Solo el perfil seleccionado</option>
+      <option value="todos-perfiles">Todos los perfiles, sin estadística general</option>
+      <option value="todo" {% if not perfil_id %}disabled{% endif %}>Estadística general y perfil seleccionado</option>
+    </select>
+    <div class="dialog-actions">
+      <button class="btn" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Continuar</button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
