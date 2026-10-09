@@ -1,20 +1,43 @@
 (function () {
   "use strict";
 
-  const search = document.getElementById("buscar-nucleo");
-  const rows = Array.from(document.querySelectorAll("#tabla-listado tbody tr[data-search]"));
-  const count = document.getElementById("conteo-nucleos");
-  const empty = document.getElementById("sin-resultados");
+  const estados = document.querySelectorAll(".estado-nucleo");
+  const valorAEstado = value => value === "true" ? true : value === "false" ? false : null;
+  const textoEstado = value => value === "true" ? "Procede" : value === "false" ? "No procede" : "Pendiente";
 
-  search.addEventListener("input", () => {
-    const query = search.value.trim().toLocaleLowerCase();
-    let visible = 0;
-    rows.forEach(row => {
-      const matches = row.dataset.search.includes(query);
-      row.hidden = !matches;
-      if (matches) visible += 1;
+  estados.forEach(select => {
+    select.addEventListener("change", async () => {
+      const valorAnterior = select.dataset.valorActual ?? "";
+      const nuevoValor = select.value;
+      const estadoAnterior = textoEstado(valorAnterior);
+      const nuevoEstado = textoEstado(nuevoValor);
+      if (!window.confirm(`¿Cambiar el núcleo ${select.dataset.codigo} de «${estadoAnterior}» a «${nuevoEstado}»?`)) {
+        select.value = valorAnterior;
+        return;
+      }
+
+      select.disabled = true;
+      const feedback = select.parentElement.querySelector(".estado-feedback");
+      feedback.textContent = "Guardando…";
+      try {
+        const response = await fetch(`/nucleos/${select.closest("tr").dataset.nucleoId}/estado`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ procede_ayuda: valorAEstado(nuevoValor) }),
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.detail || "No se pudo actualizar el estado.");
+        }
+        window.location.reload();
+      } catch (error) {
+        select.value = valorAnterior;
+        feedback.textContent = error.message;
+        window.alert(error.message);
+      } finally {
+        select.disabled = false;
+      }
     });
-    count.textContent = `${visible} ${visible === 1 ? "núcleo" : "núcleos"}`;
-    empty.hidden = visible !== 0 || rows.length === 0;
+    select.dataset.valorActual = select.value;
   });
 })();

@@ -312,6 +312,7 @@ def _consulta_listado_nucleos(
     busqueda: str | None = None,
     consejo_id: int | None = None,
     perfil_id: int | None = None,
+    estado: str | None = None,
 ):
     stmt = (
         select(
@@ -338,6 +339,13 @@ def _consulta_listado_nucleos(
             .exists()
         )
         stmt = stmt.where(miembro_con_perfil)
+    tiene_perfil_1 = _tiene_perfil_1_expr()
+    if estado == "procede":
+        stmt = stmt.where(or_(m.HogarNucleo.procede_ayuda.is_(True), tiene_perfil_1))
+    elif estado == "no_procede":
+        stmt = stmt.where(and_(m.HogarNucleo.procede_ayuda.is_(False), ~tiene_perfil_1))
+    elif estado == "pendiente":
+        stmt = stmt.where(and_(m.HogarNucleo.procede_ayuda.is_(None), ~tiene_perfil_1))
     termino = (busqueda or "").strip()
     if termino:
         patron = f"%{termino}%"
@@ -368,6 +376,23 @@ def _consulta_listado_nucleos(
     return stmt
 
 
+def _tiene_perfil_1_expr():
+    return (
+        select(m.PersonaVulnerabilidad.id)
+        .join(m.Persona, m.Persona.id == m.PersonaVulnerabilidad.persona_id)
+        .join(
+            m.CatalogoPerfilVulnerabilidad,
+            m.CatalogoPerfilVulnerabilidad.id == m.PersonaVulnerabilidad.perfil_vulnerabilidad_id,
+        )
+        .where(
+            m.Persona.hogar_id == m.HogarNucleo.id,
+            m.CatalogoPerfilVulnerabilidad.codigo == 1,
+        )
+        .correlate(m.HogarNucleo)
+        .exists()
+    )
+
+
 async def listar_consejos_populares(db: AsyncSession) -> list[dict]:
     rows = (await db.execute(
         select(m.ConsejoPopular.id, m.ConsejoPopular.nombre).order_by(m.ConsejoPopular.nombre)
@@ -390,20 +415,7 @@ async def listar_perfiles_vulnerabilidad(db: AsyncSession) -> list[dict]:
 
 
 async def contar_por_consejo(db: AsyncSession, perfil_id: int | None = None) -> list[dict]:
-    tiene_perfil_1 = (
-        select(m.PersonaVulnerabilidad.id)
-        .join(m.Persona, m.Persona.id == m.PersonaVulnerabilidad.persona_id)
-        .join(
-            m.CatalogoPerfilVulnerabilidad,
-            m.CatalogoPerfilVulnerabilidad.id == m.PersonaVulnerabilidad.perfil_vulnerabilidad_id,
-        )
-        .where(
-            m.Persona.hogar_id == m.HogarNucleo.id,
-            m.CatalogoPerfilVulnerabilidad.codigo == 1,
-        )
-        .correlate(m.HogarNucleo)
-        .exists()
-    )
+    tiene_perfil_1 = _tiene_perfil_1_expr()
     nucleos_con_perfil = func.count(func.distinct(case(
         (m.PersonaVulnerabilidad.perfil_vulnerabilidad_id == perfil_id, m.HogarNucleo.id),
         else_=None,
@@ -462,8 +474,9 @@ async def contar_nucleos(
     busqueda: str | None = None,
     consejo_id: int | None = None,
     perfil_id: int | None = None,
+    estado: str | None = None,
 ) -> int:
-    stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id).order_by(None).with_only_columns(m.HogarNucleo.id)
+    stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id, estado).order_by(None).with_only_columns(m.HogarNucleo.id)
     return await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
 
@@ -503,8 +516,9 @@ async def listar_nucleos(
     busqueda: str | None = None,
     consejo_id: int | None = None,
     perfil_id: int | None = None,
+    estado: str | None = None,
 ) -> list[dict]:
-    stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id)
+    stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id, estado)
     if offset is not None:
         stmt = stmt.offset(offset)
     if limit is not None:
@@ -552,6 +566,7 @@ async def listar_nucleos(
     result = []
     for hogar, provincia, municipio, consejo in rows:
         perfil_counts = perfiles_por_hogar.get(hogar.id, [])
+        tiene_perfil_1 = any(codigo == 1 for _, codigo, _ in perfil_counts)
         max_perfil_count = max((cantidad for _, _, cantidad in perfil_counts), default=0)
         perfiles_principales = [(nombre, codigo) for nombre, codigo, cantidad in perfil_counts if cantidad == max_perfil_count]
         if not perfiles_principales:
@@ -568,6 +583,8 @@ async def listar_nucleos(
             "municipio": municipio,
             "consejo_popular": consejo,
             "direccion": hogar.direccion,
+            "procede_ayuda": True if tiene_perfil_1 else hogar.procede_ayuda,
+            "tiene_perfil_1": tiene_perfil_1,
             "personas": personas_por_hogar.get(hogar.id, []),
             "perfil_resumen": perfil_resumen,
         })
@@ -653,6 +670,22 @@ async def actualizar_nucleo(db: AsyncSession, nucleo_id: int, data: NucleoIn) ->
     if hogar is None:
         return None
     return await _guardar_nucleo(db, data, hogar)
+
+
+async def actualizar_estado_nucleo(
+    db: AsyncSession,
+    nucleo_id: int,
+    procede_ayuda: bool | None,
+) -> m.HogarNucleo | None:
+    hogar = await db.get(m.HogarNucleo, nucleo_id)
+    if hogar is None:
+        return None
+    tiene_perfil_1 = await db.scalar(
+        select(_tiene_perfil_1_expr()).where(m.HogarNucleo.id == nucleo_id)
+    )
+    hogar.procede_ayuda = True if tiene_perfil_1 else procede_ayuda
+    await db.commit()
+    return hogar
 
 
 async def eliminar_nucleo(db: AsyncSession, nucleo_id: int) -> bool:

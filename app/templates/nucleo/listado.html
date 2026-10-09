@@ -30,6 +30,14 @@
       {% endfor %}
     </select>
   </label>
+  <label class="status-field">Estado
+    <select name="estado">
+      <option value="">Todos los estados</option>
+      <option value="procede" {% if estado == 'procede' %}selected{% endif %}>Procede</option>
+      <option value="no_procede" {% if estado == 'no_procede' %}selected{% endif %}>No procede</option>
+      <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+    </select>
+  </label>
   <button class="btn" type="submit">Buscar</button>
   <span class="list-count">Mostrando {{ desde }}–{{ hasta }} de {{ total }} núcleos</span>
   <a class="btn btn-small" href="{{ url_for('pagina_conteo_personas') }}?return_to={{ return_to|urlencode }}">Contar personas</a>
@@ -46,12 +54,13 @@
         <th>Dirección</th>
         <th>Integrantes</th>
         <th>Perfil</th>
+        <th>Procedencia</th>
         <th><span class="sr-only">Acciones</span></th>
       </tr>
     </thead>
     <tbody>
       {% for nucleo in nucleos %}
-      <tr>
+      <tr data-nucleo-id="{{ nucleo.id }}">
         <td class="codigo-cell">{{ nucleo.codigo }}</td>
         <td>{{ nucleo.provincia }}</td>
         <td>{{ nucleo.municipio }}</td>
@@ -68,19 +77,35 @@
           {% endfor %}
         </td>
         <td class="perfil-cell">{{ nucleo.perfil_resumen }}</td>
+        <td class="estado-cell">
+          {% if nucleo.tiene_perfil_1 %}
+          <span class="estado-fijo estado-procede">Procede</span>
+          {% else %}
+          <select class="estado-nucleo" aria-label="Estado de procedencia del núcleo {{ nucleo.codigo }}" data-codigo="{{ nucleo.codigo }}">
+            <option value="" {% if nucleo.procede_ayuda is none %}selected{% endif %}>Pendiente</option>
+            <option value="true" {% if nucleo.procede_ayuda is sameas true %}selected{% endif %}>Procede</option>
+            <option value="false" {% if nucleo.procede_ayuda is sameas false %}selected{% endif %}>No procede</option>
+          </select>
+          <span class="estado-feedback" role="status" aria-live="polite"></span>
+          {% endif %}
+        </td>
         <td><a class="btn btn-small" href="{{ url_for('formulario_consulta', nucleo_id=nucleo.id) }}?return_to={{ return_to|urlencode }}">Abrir</a></td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="8">{% if busqueda or consejo_id or perfil_id %}No hay núcleos que coincidan con los filtros.{% else %}Todavía no hay núcleos registrados.{% endif %}</td></tr>
+      <tr class="empty-row"><td colspan="9">{% if busqueda or consejo_id or perfil_id or estado %}No hay núcleos que coincidan con los filtros.{% else %}Todavía no hay núcleos registrados.{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 {% if total_paginas > 1 %}
 <nav class="list-pagination" aria-label="Paginación de núcleos">
-  {% if pagina > 1 %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina - 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}" aria-label="Página anterior">Anterior</a>{% endif %}
+  {% if pagina > 1 %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina - 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}" aria-label="Página anterior">Anterior</a>{% endif %}
   <span>Página {{ pagina }} de {{ total_paginas }}</span>
-  {% if pagina < total_paginas %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina + 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}" aria-label="Página siguiente">Siguiente</a>{% endif %}
+  {% if pagina < total_paginas %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina + 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}" aria-label="Página siguiente">Siguiente</a>{% endif %}
 </nav>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/listado.js') }}?v={{ static_version() }}"></script>
 {% endblock %}

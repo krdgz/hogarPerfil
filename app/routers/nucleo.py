@@ -7,10 +7,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from ..database import get_db
-from ..schemas import NucleoIn, NucleoOut
+from ..schemas import EstadoNucleoIn, NucleoIn, NucleoOut
 from ..services.catalogos import cargar_catalogos, catalogos_a_json
 from ..services.nucleo_service import (
     actualizar_nucleo,
+    actualizar_estado_nucleo,
     contar_nucleos,
     contar_por_consejo,
     crear_nucleo,
@@ -95,6 +96,7 @@ async def pagina_listado(
     q: str = "",
     consejo_id: str = "",
     perfil_id: str = "",
+    estado: str = "",
     db: AsyncSession = Depends(get_db),
 ):
     page_size = 50
@@ -108,7 +110,9 @@ async def pagina_listado(
         consejo_id = None
     if perfil_id not in perfil_ids:
         perfil_id = None
-    total = await contar_nucleos(db, q, consejo_id, perfil_id)
+    if estado not in {"procede", "no_procede", "pendiente"}:
+        estado = None
+    total = await contar_nucleos(db, q, consejo_id, perfil_id, estado)
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = min(page, total_pages)
     return templates.TemplateResponse(
@@ -122,11 +126,13 @@ async def pagina_listado(
                 busqueda=q,
                 consejo_id=consejo_id,
                 perfil_id=perfil_id,
+                estado=estado,
             ),
             "consejos": consejos,
             "consejo_id": consejo_id,
             "perfiles": perfiles,
             "perfil_id": perfil_id,
+            "estado": estado,
             "busqueda": q,
             "pagina": page,
             "total": total,
@@ -298,6 +304,18 @@ async def editar_nucleo(nucleo_id: int, payload: NucleoIn, db: AsyncSession = De
     if hogar is None:
         raise HTTPException(status_code=404, detail="Núcleo no encontrado")
     return NucleoOut(id=hogar.id, codigo=hogar.codigo)
+
+
+@router.patch("/{nucleo_id}/estado")
+async def cambiar_estado_nucleo(
+    nucleo_id: int,
+    payload: EstadoNucleoIn,
+    db: AsyncSession = Depends(get_db),
+):
+    hogar = await actualizar_estado_nucleo(db, nucleo_id, payload.procede_ayuda)
+    if hogar is None:
+        raise HTTPException(status_code=404, detail="Núcleo no encontrado")
+    return {"id": hogar.id, "procede_ayuda": hogar.procede_ayuda}
 
 
 @router.delete("/{nucleo_id}", status_code=204)

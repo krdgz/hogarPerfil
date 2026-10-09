@@ -90,3 +90,7 @@ class NucleoIn(BaseModel):
 class NucleoOut(BaseModel):
     id: int
     codigo: str
+
+
+class EstadoNucleoIn(BaseModel):
+    procede_ayuda: Optional[bool]
