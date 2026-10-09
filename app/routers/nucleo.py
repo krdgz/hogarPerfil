@@ -12,6 +12,7 @@ from ..services.catalogos import cargar_catalogos, catalogos_a_json
 from ..services.nucleo_service import (
     actualizar_nucleo,
     actualizar_estado_nucleo,
+    calcular_promedio_ingresos_nucleo,
     contar_nucleos,
     contar_por_consejo,
     crear_nucleo,
@@ -257,6 +258,17 @@ async def formulario_consulta(
 @router.get("/api/listado", response_class=JSONResponse)
 async def api_listado(db: AsyncSession = Depends(get_db)):
     return await listar_nucleos(db)
+
+
+@router.get("/api/{nucleo_id}/promedio-ingresos")
+async def api_promedio_ingresos_nucleo(
+    nucleo_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    resultado = await calcular_promedio_ingresos_nucleo(db, nucleo_id)
+    if resultado is None:
+        raise HTTPException(status_code=404, detail="Núcleo no encontrado")
+    return resultado
 
 
 @router.get("/api/ultimo-codigo", response_class=JSONResponse)

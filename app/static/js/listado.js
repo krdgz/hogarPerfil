@@ -40,4 +40,47 @@
     });
     select.dataset.valorActual = select.value;
   });
+
+  document.querySelectorAll(".btn-calcular-promedio").forEach(button => {
+    button.addEventListener("click", async () => {
+      const resultado = button.parentElement.querySelector(".promedio-nucleo");
+      if (!resultado.hidden) {
+        resultado.hidden = true;
+        button.textContent = "Calcular";
+        button.setAttribute("aria-expanded", "false");
+        return;
+      }
+      if (button.dataset.calculado === "true") {
+        resultado.hidden = false;
+        button.textContent = "Ocultar";
+        button.setAttribute("aria-expanded", "true");
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Calculando…";
+      resultado.hidden = false;
+      resultado.textContent = "Calculando…";
+      try {
+        const nucleoId = button.closest("tr").dataset.nucleoId;
+        const response = await fetch(`/nucleos/api/${nucleoId}/promedio-ingresos`);
+        if (!response.ok) throw new Error("No se pudo calcular el promedio.");
+        const data = await response.json();
+        const formatoCUP = new Intl.NumberFormat("es-CU", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        resultado.textContent = `${formatoCUP.format(data.promedio)} CUP`;
+        resultado.classList.toggle("promedio-alto", data.promedio >= 4000);
+        button.dataset.calculado = "true";
+        button.textContent = "Ocultar";
+        button.setAttribute("aria-expanded", "true");
+      } catch (error) {
+        resultado.textContent = error.message;
+        button.textContent = "Reintentar";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
 })();

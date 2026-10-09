@@ -55,6 +55,7 @@
         <th>Integrantes</th>
         <th>Perfil</th>
         <th>Procedencia</th>
+        <th>Salario promedio</th>
         <th><span class="sr-only">Acciones</span></th>
       </tr>
     </thead>
@@ -89,10 +90,14 @@
           <span class="estado-feedback" role="status" aria-live="polite"></span>
           {% endif %}
         </td>
+        <td class="promedio-cell">
+          <button class="btn btn-small btn-calcular-promedio" type="button" aria-expanded="false">Calcular</button>
+          <span class="promedio-nucleo" role="status" aria-live="polite" hidden></span>
+        </td>
         <td><a class="btn btn-small" href="{{ url_for('formulario_consulta', nucleo_id=nucleo.id) }}?return_to={{ return_to|urlencode }}">Abrir</a></td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="9">{% if busqueda or consejo_id or perfil_id or estado %}No hay núcleos que coincidan con los filtros.{% else %}Todavía no hay núcleos registrados.{% endif %}</td></tr>
+      <tr class="empty-row"><td colspan="10">{% if busqueda or consejo_id or perfil_id or estado %}No hay núcleos que coincidan con los filtros.{% else %}Todavía no hay núcleos registrados.{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>

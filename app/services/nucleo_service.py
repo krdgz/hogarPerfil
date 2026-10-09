@@ -480,6 +480,36 @@ async def contar_nucleos(
     return await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
 
+async def calcular_promedio_ingresos_nucleo(
+    db: AsyncSession,
+    nucleo_id: int,
+) -> dict | None:
+    ingreso_positivo = case(
+        (m.Persona.ingreso_mensual_cup > 0, m.Persona.ingreso_mensual_cup),
+        else_=0,
+    )
+    stmt = (
+        select(
+            m.HogarNucleo.id,
+            func.coalesce(func.sum(ingreso_positivo), 0),
+            func.count(m.Persona.id),
+        )
+        .select_from(m.HogarNucleo)
+        .outerjoin(m.Persona, m.Persona.hogar_id == m.HogarNucleo.id)
+        .where(m.HogarNucleo.id == nucleo_id)
+        .group_by(m.HogarNucleo.id)
+    )
+    row = (await db.execute(stmt)).one_or_none()
+    if row is None:
+        return None
+    _, suma_ingresos, cantidad_personas = row
+    promedio = float(suma_ingresos) / cantidad_personas if cantidad_personas else 0
+    return {
+        "promedio": promedio,
+        "cantidad_personas": cantidad_personas,
+    }
+
+
 async def contar_personas_en_nucleos(
     db: AsyncSession,
     busqueda: str | None = None,

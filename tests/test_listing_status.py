@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
+from decimal import Decimal
 
 from sqlalchemy.dialects import postgresql
 
@@ -7,6 +8,7 @@ from app import models
 from app.services.nucleo_service import (
     _consulta_listado_nucleos,
     actualizar_estado_nucleo,
+    calcular_promedio_ingresos_nucleo,
 )
 
 
@@ -54,6 +56,29 @@ class ListingStatusTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIs(result.procede_ayuda, True)
         db.commit.assert_awaited_once()
+
+    async def test_calculates_only_requested_nucleus_average_in_one_query(self):
+        db = AsyncMock()
+        db.execute.return_value = Mock(
+            one_or_none=Mock(
+                return_value=(
+                    12,
+                    Decimal("8000.00"),
+                    2,
+                )
+            )
+        )
+
+        result = await calcular_promedio_ingresos_nucleo(db, 12)
+
+        self.assertEqual(
+            result,
+            {"promedio": 4000.0, "cantidad_personas": 2},
+        )
+        db.execute.assert_awaited_once()
+        sql = str(db.execute.await_args.args[0].compile(dialect=postgresql.dialect()))
+        self.assertIn("hogar_nucleo.id =", sql)
+        self.assertIn("persona.ingreso_mensual_cup >", sql)
 
 
 if __name__ == "__main__":

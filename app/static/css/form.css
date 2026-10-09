@@ -239,6 +239,9 @@ textarea { width: 100%; padding: 7px 8px; border: 1px solid #aab; border-radius:
 .tabla-listado .estado-fijo { display: inline-block; padding: 6px 8px; font-weight: 700; }
 .tabla-listado .estado-procede { color: #285c38; }
 .tabla-listado .estado-feedback { display: block; color: #a32323; font-size: 11px; }
+.tabla-listado .promedio-cell { min-width: 145px; white-space: nowrap; }
+.tabla-listado .promedio-nucleo { margin-left: 6px; font-weight: 700; color: #315d52; }
+.tabla-listado .promedio-nucleo.promedio-alto { color: #a32323; }
 .tabla-listado td:last-child, .tabla-listado th:last-child { text-align: right; }
 .tabla-listado .empty-row td { padding: 24px; color: #61706c; text-align: center; }
 .tabla-conteo { width: 950px; min-width: 950px; table-layout: fixed; }
