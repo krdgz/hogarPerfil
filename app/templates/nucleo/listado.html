@@ -52,6 +52,10 @@
     </select>
     <label for="busqueda-impresion">Buscar código, dirección, integrante o CI</label>
     <input id="busqueda-impresion" name="q" type="search" maxlength="100" />
+    <label for="edad-min-impresion">Edad mínima</label>
+    <input id="edad-min-impresion" name="edad_min" type="number" min="0" max="120" />
+    <label for="edad-max-impresion">Edad máxima</label>
+    <input id="edad-max-impresion" name="edad_max" type="number" min="0" max="120" />
     <div class="dialog-actions">
       <button class="btn" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
       <button class="btn btn-primary" type="submit">Continuar</button>

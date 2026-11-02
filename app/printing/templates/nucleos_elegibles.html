@@ -32,7 +32,7 @@
   {% endmacro %}
 
   <main>
-    <p class="filter-summary">{% if tipo == "todos" %}Todos los núcleos{% else %}Núcleos elegibles{% endif %}{% if perfil %} | Perfil {{ perfil.codigo }} - {{ perfil.nombre }}{% elif perfil_id == "sin-perfil" %} | Sin perfil{% endif %}{% if sexo == "F" %} | Con mujeres{% elif sexo == "M" %} | Con hombres{% elif sexo == "sin-sexo" %} | Con integrantes sin sexo registrado{% endif %}{% if estado %} | Estado: {{ estado|replace('_', ' ') }}{% endif %}{% if busqueda %} | Búsqueda: {{ busqueda }}{% endif %}</p>
+    <p class="filter-summary">{% if tipo == "todos" %}Todos los núcleos{% else %}Núcleos elegibles{% endif %}{% if perfil %} | Perfil {{ perfil.codigo }} - {{ perfil.nombre }}{% elif perfil_id == "sin-perfil" %} | Sin perfil{% endif %}{% if sexo == "F" %} | Con mujeres{% elif sexo == "M" %} | Con hombres{% elif sexo == "sin-sexo" %} | Con integrantes sin sexo registrado{% endif %}{% if estado %} | Estado: {{ estado|replace('_', ' ') }}{% endif %}{% if busqueda %} | Búsqueda: {{ busqueda }}{% endif %}{% if edad_min is not none or edad_max is not none %} | Edades {{ edad_min if edad_min is not none else 0 }}-{{ edad_max if edad_max is not none else 120 }}{% endif %}</p>
     {% if not grupos_consejos %}
     <p>No hay núcleos que coincidan con los filtros seleccionados.</p>
     {% else %}

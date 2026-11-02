@@ -13,6 +13,8 @@ from ..services.nucleo_service import (
     listar_nucleos_elegibles_impresion,
     listar_nucleos_por_consejo_impresion,
     listar_perfiles_vulnerabilidad,
+    edad_en_anos_desde_ci,
+    normalizar_rango_edad,
 )
 
 
@@ -56,8 +58,11 @@ def _filtrar_grupos_impresion(
     sexo: str | None = None,
     estado: str | None = None,
     busqueda: str = "",
+    edad_min: int | None = None,
+    edad_max: int | None = None,
 ) -> list[dict]:
     busqueda = busqueda.casefold().strip()
+    edad_min, edad_max = normalizar_rango_edad(edad_min, edad_max)
     resultado = []
     for consejo in grupos_consejos:
         grupos = []
@@ -77,6 +82,15 @@ def _filtrar_grupos_impresion(
                     continue
                 if sexo == "sin-sexo" and not any(not persona.get("sexo") for persona in personas):
                     continue
+                if edad_min is not None or edad_max is not None:
+                    edades = [edad_en_anos_desde_ci(persona.get("cedula")) for persona in personas]
+                    if not any(
+                        edad is not None
+                        and (edad_min is None or edad >= edad_min)
+                        and (edad_max is None or edad <= edad_max)
+                        for edad in edades
+                    ):
+                        continue
                 procede = nucleo.get("procede")
                 if estado == "procede" and procede is not True:
                     continue
@@ -157,6 +171,8 @@ async def pagina_impresion_nucleos_elegibles(
     sexo: Literal["", "F", "M", "sin-sexo"] = "",
     estado: Literal["", "procede", "no_procede", "pendiente"] = "",
     q: str = Query("", max_length=100),
+    edad_min: str = Query(""),
+    edad_max: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ):
     consejo_id_param = consejo_id.strip()
@@ -189,6 +205,7 @@ async def pagina_impresion_nucleos_elegibles(
         if tipo == "todos"
         else await listar_nucleos_elegibles_impresion(db, consejo_id)
     )
+    edad_min, edad_max = normalizar_rango_edad(edad_min, edad_max)
     grupos_consejos = _filtrar_grupos_impresion(
         grupos_consejos,
         perfil_codigo=perfil_codigo,
@@ -196,6 +213,8 @@ async def pagina_impresion_nucleos_elegibles(
         sexo=sexo or None,
         estado=estado or None,
         busqueda=q,
+        edad_min=edad_min,
+        edad_max=edad_max,
     )
     return templates.TemplateResponse(
         "nucleos_elegibles.html",
@@ -207,6 +226,8 @@ async def pagina_impresion_nucleos_elegibles(
             "sexo": sexo,
             "estado": estado,
             "busqueda": q,
+            "edad_min": edad_min,
+            "edad_max": edad_max,
             "perfil": perfil_seleccionado,
             "grupos_consejos": grupos_consejos,
             "directora_nombre": os.getenv("DIRECTORA_NOMBRE", "").strip(),
