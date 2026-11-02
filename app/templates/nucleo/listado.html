@@ -7,8 +7,57 @@
     <p class="eyebrow">Caracterización de hogares</p>
     <h1>Núcleos registrados</h1>
   </div>
-  <a class="btn btn-primary" href="{{ url_for('formulario_nuevo') }}?return_to={{ return_to|urlencode }}">+ Crear núcleo</a>
+  <div class="list-header-actions">
+    <button class="btn" type="button" onclick="document.getElementById('dialogo-impresion-elegibles').showModal()">Imprimir</button>
+    <a class="btn btn-primary" href="{{ url_for('formulario_nuevo') }}?return_to={{ return_to|urlencode }}">+ Crear núcleo</a>
+  </div>
 </header>
+
+<dialog id="dialogo-impresion-elegibles" aria-labelledby="titulo-impresion-elegibles">
+  <form method="get" action="{{ url_for('pagina_impresion_nucleos_elegibles') }}" target="_blank">
+    <h2 id="titulo-impresion-elegibles">Imprimir núcleos</h2>
+    <label for="tipo-impresion-elegibles">Qué imprimir</label>
+    <select id="tipo-impresion-elegibles" name="tipo">
+      <option value="elegibles">Núcleos elegibles</option>
+      <option value="todos">Todos los núcleos por consejo popular</option>
+    </select>
+    <label for="consejo-impresion-elegibles">Consejo Popular</label>
+    <select id="consejo-impresion-elegibles" name="consejo_id">
+      <option value="">Todos los consejos</option>
+      {% for consejo in consejos %}
+      <option value="{{ consejo.id }}">{{ consejo.nombre }}</option>
+      {% endfor %}
+    </select>
+    <label for="perfil-impresion">Perfil de vulnerabilidad</label>
+    <select id="perfil-impresion" name="perfil_id">
+      <option value="">Todos los perfiles</option>
+      <option value="sin-perfil">Solo núcleos sin perfil</option>
+      {% for perfil in perfiles %}
+      <option value="{{ perfil.id }}">{{ perfil.codigo }} - {{ perfil.nombre }}</option>
+      {% endfor %}
+    </select>
+    <label for="sexo-impresion">Integrantes por sexo</label>
+    <select id="sexo-impresion" name="sexo">
+      <option value="">Cualquier sexo</option>
+      <option value="F">Núcleos con mujeres</option>
+      <option value="M">Núcleos con hombres</option>
+      <option value="sin-sexo">Núcleos con integrantes sin sexo registrado</option>
+    </select>
+    <label for="estado-impresion">Estado de procedencia</label>
+    <select id="estado-impresion" name="estado">
+      <option value="">Todos los estados</option>
+      <option value="procede">Procede</option>
+      <option value="no_procede">No procede</option>
+      <option value="pendiente">Pendiente</option>
+    </select>
+    <label for="busqueda-impresion">Buscar código, dirección, integrante o CI</label>
+    <input id="busqueda-impresion" name="q" type="search" maxlength="100" />
+    <div class="dialog-actions">
+      <button class="btn" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Continuar</button>
+    </div>
+  </form>
+</dialog>
 
 <form class="list-toolbar" method="get" action="{{ url_for('pagina_listado') }}">
   <label class="search-field">Buscar núcleo
@@ -25,6 +74,7 @@
   <label class="profile-field">Perfil de vulnerabilidad
     <select name="perfil_id">
       <option value="">Todos los perfiles</option>
+      <option value="sin-perfil" {% if perfil_id == 'sin-perfil' %}selected{% endif %}>Sin perfil</option>
       {% for perfil in perfiles %}
       <option value="{{ perfil.id }}" {% if perfil_id == perfil.id %}selected{% endif %}>{{ perfil.codigo }} - {{ perfil.nombre }}</option>
       {% endfor %}

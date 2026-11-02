@@ -20,8 +20,10 @@ from ..services.nucleo_service import (
     listar_consejos_populares,
     listar_nucleos,
     listar_perfiles_vulnerabilidad,
+    normalizar_rango_edad,
     obtener_nucleo,
     obtener_ultimo_codigo_nucleo,
+    PERFIL_SIN_PERFIL,
 )
 
 router = APIRouter(prefix="/nucleos", tags=["nucleos"])
@@ -102,14 +104,18 @@ async def pagina_listado(
 ):
     page_size = 50
     consejo_id = _optional_positive_id(consejo_id, "consejo_id")
-    perfil_id = _optional_positive_id(perfil_id, "perfil_id")
+    perfil_id = (
+        PERFIL_SIN_PERFIL
+        if perfil_id == PERFIL_SIN_PERFIL
+        else _optional_positive_id(perfil_id, "perfil_id")
+    )
     consejos = await listar_consejos_populares(db)
     perfiles = await listar_perfiles_vulnerabilidad(db)
     consejo_ids = {consejo["id"] for consejo in consejos}
     perfil_ids = {perfil["id"] for perfil in perfiles}
     if consejo_id not in consejo_ids:
         consejo_id = None
-    if perfil_id not in perfil_ids:
+    if perfil_id not in perfil_ids and perfil_id != PERFIL_SIN_PERFIL:
         perfil_id = None
     if estado not in {"procede", "no_procede", "pendiente"}:
         estado = None
@@ -149,6 +155,8 @@ async def pagina_listado(
 async def pagina_conteo_personas(
     request: Request,
     perfil_id: str = "",
+    edad_min: str = "",
+    edad_max: str = "",
     return_to: str = "",
     scroll_y: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -158,7 +166,9 @@ async def pagina_conteo_personas(
     profile_ids = {perfil["id"] for perfil in perfiles}
     if selected_profile_id not in profile_ids:
         selected_profile_id = None
-    conteos = await contar_por_consejo(db, selected_profile_id)
+    rango_edad = normalizar_rango_edad(edad_min, edad_max)
+    edad_min_value, edad_max_value = rango_edad
+    conteos = await contar_por_consejo(db, selected_profile_id, edad_min_value, edad_max_value)
     total_edad_perfil_0_3 = (
         sum(row.get("personas_perfil_0_3") or 0 for row in conteos)
         if selected_profile_id == 5
@@ -202,9 +212,17 @@ async def pagina_conteo_personas(
             ),
             "return_to": _safe_list_return_to(return_to),
             "scroll_y": scroll_y,
+            "edad_min": edad_min_value,
+            "edad_max": edad_max_value,
+            "rango_edad_activo": edad_min_value is not None or edad_max_value is not None,
             "conteos": conteos,
             "total_nucleos": sum(row["nucleos"] for row in conteos),
             "total_personas": sum(row["personas"] for row in conteos),
+            "total_personas_edad_rango": (
+                sum(row.get("personas_edad_rango") or 0 for row in conteos)
+                if (edad_min_value is not None or edad_max_value is not None)
+                else None
+            ),
             "total_nucleos_proceden": sum(row["nucleos_proceden"] for row in conteos),
             "total_nucleos_no_proceden": sum(row["nucleos_no_proceden"] for row in conteos),
             "total_nucleos_sin_procesar": sum(row["nucleos_sin_procesar"] for row in conteos),

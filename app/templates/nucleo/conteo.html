@@ -12,6 +12,20 @@
 
 <button class="btn" type="button" onclick="document.getElementById('dialogo-impresion').showModal()">Imprimir</button>
 
+<form class="count-toolbar" method="get" action="{{ url_for('pagina_conteo_personas') }}" onsubmit="this.elements.scroll_y.value = Math.round(window.scrollY)">
+  <input type="hidden" name="return_to" value="{{ return_to }}" />
+  <input type="hidden" name="scroll_y" value="{{ scroll_y }}" />
+  {% if perfil_id %}<input type="hidden" name="perfil_id" value="{{ perfil_id }}" />{% endif %}
+  <label class="profile-field">Edad mínima
+    <input type="number" name="edad_min" min="0" max="120" value="{{ edad_min if edad_min is not none else '' }}" placeholder="0">
+  </label>
+  <label class="profile-field">Edad máxima
+    <input type="number" name="edad_max" min="0" max="120" value="{{ edad_max if edad_max is not none else '' }}" placeholder="120">
+  </label>
+  <button class="btn" type="submit">Aplicar</button>
+  <button class="btn btn-secondary" type="button" onclick="const form = this.form; form.edad_min.value=''; form.edad_max.value=''; form.submit();">Reset</button>
+</form>
+
 <section class="count-section" aria-labelledby="titulo-conteo-general">
   <h2 id="titulo-conteo-general">Estadística general</h2>
 <div class="table-scroll">
@@ -21,6 +35,9 @@
         <th rowspan="2">Consejo Popular</th>
         <th rowspan="2">Núcleos</th>
         <th rowspan="2">Personas</th>
+        {% if rango_edad_activo %}
+        <th rowspan="2">Personas de {{ edad_min if edad_min is not none else 0 }} a {{ edad_max if edad_max is not none else 120 }} años</th>
+        {% endif %}
         <th class="status-group" colspan="3">Estado de procedencia</th>
       </tr>
       <tr>
@@ -35,6 +52,9 @@
         <td>{{ fila.consejo }}</td>
         <td>{{ fila.nucleos }}</td>
         <td>{{ fila.personas }}</td>
+        {% if rango_edad_activo %}
+        <td>{{ fila.personas_edad_rango or 0 }}</td>
+        {% endif %}
         <td class="status-procede status-start">{{ fila.nucleos_proceden }}</td>
         <td class="status-no-procede">{{ fila.nucleos_no_proceden }}</td>
         <td class="status-pendiente status-end">{{ fila.nucleos_sin_procesar }}</td>
@@ -49,6 +69,9 @@
         <th>Total</th>
         <th>{{ total_nucleos }}</th>
         <th>{{ total_personas }}</th>
+        {% if rango_edad_activo %}
+        <th>{{ total_personas_edad_rango if total_personas_edad_rango is not none else 0 }}</th>
+        {% endif %}
         <th class="status-procede status-start">{{ total_nucleos_proceden }}</th>
         <th class="status-no-procede">{{ total_nucleos_no_proceden }}</th>
         <th class="status-pendiente status-end">{{ total_nucleos_sin_procesar }}</th>
@@ -64,6 +87,8 @@
   <form class="count-toolbar" method="get" action="{{ url_for('pagina_conteo_personas') }}" onsubmit="this.elements.scroll_y.value = Math.round(window.scrollY)">
     <input type="hidden" name="return_to" value="{{ return_to }}" />
     <input type="hidden" name="scroll_y" value="{{ scroll_y }}" />
+    <input type="hidden" name="edad_min" value="{{ edad_min if edad_min is not none else '' }}" />
+    <input type="hidden" name="edad_max" value="{{ edad_max if edad_max is not none else '' }}" />
     <label class="profile-field">Perfil de vulnerabilidad
       <select name="perfil_id" onchange="this.form.requestSubmit()">
         <option value="">Selecciona un perfil</option>
@@ -83,6 +108,9 @@
           <th>Consejo Popular</th>
           <th>Núcleos con {{ perfil_seleccionado.nombre }}</th>
           <th>Personas con {{ perfil_seleccionado.nombre }}</th>
+          {% if rango_edad_activo %}
+          <th>Personas de {{ edad_min if edad_min is not none else 0 }} a {{ edad_max if edad_max is not none else 120 }} años con {{ perfil_seleccionado.nombre }}</th>
+          {% endif %}
           {% if perfil_id == 5 %}
           <th>Personas de 0-3 años con perfil 5</th>
           <th>Personas de 0-5 años con perfil 5</th>
@@ -100,6 +128,9 @@
           <td>{{ fila.consejo }}</td>
           <td>{{ fila.nucleos_perfil }}</td>
           <td>{{ fila.personas_perfil }}</td>
+          {% if rango_edad_activo %}
+          <td>{{ fila.personas_edad_rango or 0 }}</td>
+          {% endif %}
           {% if perfil_id == 5 %}
           <td>{{ fila.personas_perfil_0_3 or 0 }}</td>
           <td>{{ fila.personas_perfil_0_5 or 0 }}</td>
@@ -120,6 +151,9 @@
           <th>Total</th>
           <th>{{ total_nucleos_perfil }}</th>
           <th>{{ total_personas_perfil }}</th>
+          {% if rango_edad_activo %}
+          <th>{{ total_personas_edad_rango if total_personas_edad_rango is not none else 0 }}</th>
+          {% endif %}
           {% if perfil_id == 5 %}
           <th>{{ total_edad_perfil_0_3 if total_edad_perfil_0_3 is not none else '—' }}</th>
           <th>{{ total_edad_perfil_0_5 if total_edad_perfil_0_5 is not none else '—' }}</th>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% if tipo == "todos" %}Todos los núcleos{% else %}Núcleos elegibles{% endif %}</title>
+  <style>
+    :root {
+      --directora-footer: "{{ directora_nombre or 'No configurada (DIRECTORA_NOMBRE)' }}";
+    }
+  </style>
+  <link rel="stylesheet" href="{{ request.url_for('print_static', path='print.css') }}" />
+</head>
+<body>
+  <header class="screen-header screen-only">
+    <div>
+      <p class="eyebrow">Caracterización de hogares</p>
+      <h1>Vista de impresión</h1>
+    </div>
+    <nav aria-label="Acciones">
+      <a href="/nucleos">Volver al listado</a>
+      <button type="button" onclick="window.print()">Imprimir</button>
+    </nav>
+  </header>
+
+  {% macro pie_ubicacion(consejo, columnas) %}
+  <tfoot>
+    <tr>
+      <td colspan="{{ columnas }}">Provincia: {{ consejo.provincia }} | Municipio: {{ consejo.municipio }} | Consejo Popular: {{ consejo.consejo }}</td>
+    </tr>
+  </tfoot>
+  {% endmacro %}
+
+  <main>
+    <p class="filter-summary">{% if tipo == "todos" %}Todos los núcleos{% else %}Núcleos elegibles{% endif %}{% if perfil %} | Perfil {{ perfil.codigo }} - {{ perfil.nombre }}{% elif perfil_id == "sin-perfil" %} | Sin perfil{% endif %}{% if sexo == "F" %} | Con mujeres{% elif sexo == "M" %} | Con hombres{% elif sexo == "sin-sexo" %} | Con integrantes sin sexo registrado{% endif %}{% if estado %} | Estado: {{ estado|replace('_', ' ') }}{% endif %}{% if busqueda %} | Búsqueda: {{ busqueda }}{% endif %}</p>
+    {% if not grupos_consejos %}
+    <p>No hay núcleos que coincidan con los filtros seleccionados.</p>
+    {% else %}
+      {% for consejo in grupos_consejos %}
+      <section class="print-section">
+        <h2>Consejo Popular: {{ consejo.consejo }}</h2>
+
+        {% if tipo == "todos" %}
+          {% if not consejo.grupos %}
+          <p>No hay núcleos registrados para este consejo.</p>
+          {% else %}
+          <table class="eligible-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombres y apellidos con CI</th>
+                <th>Dirección - Circunscripción</th>
+                <th>No. Bodega</th>
+                <th>Procede</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for grupo in consejo.grupos %}
+              <tr><th colspan="5">{% if grupo.perfil.codigo is none %}Sin perfil{% else %}Perfil {{ grupo.perfil.codigo }} - {{ grupo.perfil.nombre }}{% endif %}</th></tr>
+              {% for nucleo in grupo.nucleos %}
+              <tr>
+                <td>{{ nucleo.codigo }}</td>
+                <td>
+                  {% for persona in nucleo.personas %}
+                  <div>{{ persona.nombre }} - CI {{ persona.cedula }}{% if persona.sexo %} - {{ persona.sexo }}{% endif %}</div>
+                  {% else %}
+                  <span>Sin personas</span>
+                  {% endfor %}
+                </td>
+                <td>{{ nucleo.direccion_completa or '—' }}</td>
+                <td>{{ nucleo.bodega or '—' }}</td>
+                <td>{% if nucleo.procede is sameas true %}Sí{% elif nucleo.procede is sameas false %}No{% endif %}</td>
+              </tr>
+              {% endfor %}
+              {% endfor %}
+            </tbody>
+            {{ pie_ubicacion(consejo, 5) }}
+          </table>
+          {% endif %}
+        {% elif not consejo.grupos %}
+        <p>No hay núcleos elegibles para este consejo.</p>
+        {% else %}
+          <table class="eligible-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombres y apellidos con CI</th>
+                <th>Dirección - Circunscripción</th>
+                <th>No. Bodega</th>
+                <th>Procede</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for grupo in consejo.grupos %}
+              <tr><th colspan="5">{% if grupo.perfil.codigo is none %}Sin perfil{% else %}Perfil {{ grupo.perfil.codigo }} - {{ grupo.perfil.nombre }}{% endif %}</th></tr>
+              {% for nucleo in grupo.nucleos %}
+              <tr>
+                <td>{{ nucleo.codigo }}</td>
+                <td>
+                  {% for persona in nucleo.personas %}
+                  <div>{{ persona.nombre }} - CI {{ persona.cedula }}{% if persona.sexo %} - {{ persona.sexo }}{% endif %}</div>
+                  {% else %}
+                  <span>Sin personas</span>
+                  {% endfor %}
+                </td>
+                <td>{{ nucleo.direccion_completa or '—' }}</td>
+                <td>{{ nucleo.bodega or '—' }}</td>
+                <td>{% if nucleo.procede is sameas true %}Sí{% elif nucleo.procede is sameas false %}No{% else %}Pendiente{% endif %}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5">No hay núcleos en este grupo.</td></tr>
+              {% endfor %}
+              {% endfor %}
+            </tbody>
+            {{ pie_ubicacion(consejo, 5) }}
+          </table>
+        {% endif %}
+      </section>
+      {% endfor %}
+    {% endif %}
+  </main>
+
+</body>
+</html>

@@ -6,6 +6,7 @@ from sqlalchemy.dialects import postgresql
 
 from app import models
 from app.services.nucleo_service import (
+    PERFIL_SIN_PERFIL,
     _consulta_listado_nucleos,
     actualizar_estado_nucleo,
     calcular_promedio_ingresos_nucleo,
@@ -13,6 +14,16 @@ from app.services.nucleo_service import (
 
 
 class ListingStatusTests(unittest.IsolatedAsyncioTestCase):
+    def test_sin_perfil_filter_matches_nuclei_without_any_profile(self):
+        sql = str(
+            _consulta_listado_nucleos(perfil_id=PERFIL_SIN_PERFIL).compile(
+                dialect=postgresql.dialect(),
+            )
+        )
+
+        self.assertIn("NOT (EXISTS", sql)
+        self.assertIn("persona.hogar_id = hogar_nucleo.id", sql)
+
     def test_status_filters_match_each_tri_state(self):
         expected = {
             "procede": ("procede_ayuda IS true", "catalogo_perfil_vulnerabilidad.codigo = "),

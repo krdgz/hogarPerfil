@@ -2,12 +2,18 @@ from pathlib import Path
 import os
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
-from ..services.nucleo_service import contar_por_consejo, listar_perfiles_vulnerabilidad
+from ..services.nucleo_service import (
+    contar_por_consejo,
+    listar_consejos_populares,
+    listar_nucleos_elegibles_impresion,
+    listar_nucleos_por_consejo_impresion,
+    listar_perfiles_vulnerabilidad,
+)
 
 
 router = APIRouter()
@@ -40,6 +46,61 @@ def _resumen_perfil(perfil: dict, filas: list[dict]) -> dict:
             fila.get("personas_perfil_8_13") or 0 for fila in filas
         ) if perfil_id in {6, 7} else None,
     }
+
+
+def _filtrar_grupos_impresion(
+    grupos_consejos: list[dict],
+    *,
+    perfil_codigo: int | None = None,
+    solo_sin_perfil: bool = False,
+    sexo: str | None = None,
+    estado: str | None = None,
+    busqueda: str = "",
+) -> list[dict]:
+    busqueda = busqueda.casefold().strip()
+    resultado = []
+    for consejo in grupos_consejos:
+        grupos = []
+        for grupo in consejo["grupos"]:
+            codigo = grupo["perfil"]["codigo"]
+            if solo_sin_perfil and codigo is not None:
+                continue
+            if perfil_codigo is not None and codigo != perfil_codigo:
+                continue
+
+            nucleos = []
+            for nucleo in grupo["nucleos"]:
+                personas = nucleo.get("personas", [])
+                if sexo == "F" and not any(persona.get("sexo") == "F" for persona in personas):
+                    continue
+                if sexo == "M" and not any(persona.get("sexo") == "M" for persona in personas):
+                    continue
+                if sexo == "sin-sexo" and not any(not persona.get("sexo") for persona in personas):
+                    continue
+                procede = nucleo.get("procede")
+                if estado == "procede" and procede is not True:
+                    continue
+                if estado == "no_procede" and procede is not False:
+                    continue
+                if estado == "pendiente" and procede is not None:
+                    continue
+                if busqueda:
+                    campos = [
+                        nucleo.get("codigo", ""),
+                        nucleo.get("direccion_completa", nucleo.get("direccion", "")),
+                        nucleo.get("circunscripcion", ""),
+                        nucleo.get("bodega", ""),
+                        *(persona.get("nombre", "") for persona in personas),
+                        *(persona.get("cedula", "") for persona in personas),
+                    ]
+                    if not any(busqueda in str(campo or "").casefold() for campo in campos):
+                        continue
+                nucleos.append(nucleo)
+            if nucleos:
+                grupos.append({**grupo, "nucleos": nucleos})
+        if grupos:
+            resultado.append({**consejo, "grupos": grupos})
+    return resultado
 
 
 @router.get("/nucleos/conteo/impresion", name="pagina_impresion_estadisticas")
@@ -82,6 +143,72 @@ async def pagina_impresion_estadisticas(
             "general": general,
             "resumen_seleccionado": resumen_seleccionado,
             "resumenes_perfiles": resumenes_perfiles,
+            "directora_nombre": os.getenv("DIRECTORA_NOMBRE", "").strip(),
+        },
+    )
+
+
+@router.get("/nucleos/elegibles/impresion", name="pagina_impresion_nucleos_elegibles")
+async def pagina_impresion_nucleos_elegibles(
+    request: Request,
+    tipo: Literal["elegibles", "todos"] = "elegibles",
+    consejo_id: str = Query(""),
+    perfil_id: str = Query(""),
+    sexo: Literal["", "F", "M", "sin-sexo"] = "",
+    estado: Literal["", "procede", "no_procede", "pendiente"] = "",
+    q: str = Query("", max_length=100),
+    db: AsyncSession = Depends(get_db),
+):
+    consejo_id_param = consejo_id.strip()
+    if consejo_id_param:
+        try:
+            consejo_id = int(consejo_id_param)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="consejo_id debe ser un entero") from exc
+        if consejo_id < 1:
+            raise HTTPException(status_code=422, detail="consejo_id debe ser mayor que cero")
+    else:
+        consejo_id = None
+    consejos = await listar_consejos_populares(db)
+    if consejo_id is not None and consejo_id not in {consejo["id"] for consejo in consejos}:
+        consejo_id = None
+    perfiles = await listar_perfiles_vulnerabilidad(db)
+    perfil_seleccionado = None
+    solo_sin_perfil = perfil_id == "sin-perfil"
+    if perfil_id and not solo_sin_perfil:
+        try:
+            perfil_seleccionado = next(
+                (perfil for perfil in perfiles if perfil["id"] == int(perfil_id)),
+                None,
+            )
+        except ValueError:
+            perfil_seleccionado = None
+    perfil_codigo = perfil_seleccionado["codigo"] if perfil_seleccionado else None
+    grupos_consejos = (
+        await listar_nucleos_por_consejo_impresion(db, consejo_id)
+        if tipo == "todos"
+        else await listar_nucleos_elegibles_impresion(db, consejo_id)
+    )
+    grupos_consejos = _filtrar_grupos_impresion(
+        grupos_consejos,
+        perfil_codigo=perfil_codigo,
+        solo_sin_perfil=solo_sin_perfil,
+        sexo=sexo or None,
+        estado=estado or None,
+        busqueda=q,
+    )
+    return templates.TemplateResponse(
+        "nucleos_elegibles.html",
+        {
+            "request": request,
+            "tipo": tipo,
+            "consejo_id": consejo_id,
+            "perfil_id": perfil_id,
+            "sexo": sexo,
+            "estado": estado,
+            "busqueda": q,
+            "perfil": perfil_seleccionado,
+            "grupos_consejos": grupos_consejos,
             "directora_nombre": os.getenv("DIRECTORA_NOMBRE", "").strip(),
         },
     )

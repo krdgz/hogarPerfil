@@ -30,6 +30,34 @@ def edad_en_anos_desde_ci(ci: str | None) -> int | None:
     return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
 
+def normalizar_rango_edad(edad_min: str | int | None, edad_max: str | int | None) -> tuple[int | None, int | None]:
+    def _parse(value):
+        if value is None:
+            return None
+        if isinstance(value, int):
+            return value
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            parsed = int(text)
+        except ValueError:
+            return None
+        return parsed if parsed >= 0 else None
+
+    minimo = _parse(edad_min)
+    maximo = _parse(edad_max)
+    if minimo is None and maximo is None:
+        return (None, None)
+    if minimo is None:
+        minimo = 0
+    if maximo is None:
+        maximo = 120
+    if minimo > maximo:
+        minimo, maximo = maximo, minimo
+    return (minimo, maximo)
+
+
 def _edad_ci_sql_expr():
     current_year = func.extract("year", func.current_date())
     current_year_2dig = current_year % 100
@@ -311,7 +339,7 @@ async def obtener_ultimo_codigo_nucleo(db: AsyncSession) -> str | None:
 def _consulta_listado_nucleos(
     busqueda: str | None = None,
     consejo_id: int | None = None,
-    perfil_id: int | None = None,
+    perfil_id: int | str | None = None,
     estado: str | None = None,
 ):
     stmt = (
@@ -328,7 +356,9 @@ def _consulta_listado_nucleos(
     )
     if consejo_id is not None:
         stmt = stmt.where(m.HogarNucleo.consejo_popular_id == consejo_id)
-    if perfil_id is not None:
+    if perfil_id == PERFIL_SIN_PERFIL:
+        stmt = stmt.where(_no_tiene_perfiles_expr())
+    elif perfil_id is not None:
         miembro_con_perfil = (
             select(m.PersonaVulnerabilidad.persona_id)
             .join(m.Persona, m.Persona.id == m.PersonaVulnerabilidad.persona_id)
@@ -376,6 +406,9 @@ def _consulta_listado_nucleos(
     return stmt
 
 
+PERFIL_SIN_PERFIL = "sin-perfil"
+
+
 def _tiene_perfil_1_expr():
     return (
         select(m.PersonaVulnerabilidad.id)
@@ -391,6 +424,25 @@ def _tiene_perfil_1_expr():
         .correlate(m.HogarNucleo)
         .exists()
     )
+
+
+def _no_tiene_perfiles_expr():
+    return ~(
+        select(m.PersonaVulnerabilidad.id)
+        .join(m.Persona, m.Persona.id == m.PersonaVulnerabilidad.persona_id)
+        .where(m.Persona.hogar_id == m.HogarNucleo.id)
+        .correlate(m.HogarNucleo)
+        .exists()
+    )
+
+
+def _sexo_letra(nombre: str | None) -> str | None:
+    sexo = (nombre or "").strip().casefold()
+    if sexo in {"f", "femenino"}:
+        return "F"
+    if sexo in {"m", "masculino"}:
+        return "M"
+    return None
 
 
 async def listar_consejos_populares(db: AsyncSession) -> list[dict]:
@@ -414,7 +466,233 @@ async def listar_perfiles_vulnerabilidad(db: AsyncSession) -> list[dict]:
     ]
 
 
-async def contar_por_consejo(db: AsyncSession, perfil_id: int | None = None) -> list[dict]:
+async def listar_nucleos_elegibles_impresion(
+    db: AsyncSession,
+    consejo_id: int | None = None,
+) -> list[dict]:
+    tiene_perfil_1 = _tiene_perfil_1_expr()
+    no_tiene_perfiles = _no_tiene_perfiles_expr()
+    stmt = (
+        select(
+            m.HogarNucleo.id,
+            m.HogarNucleo.codigo,
+            m.HogarNucleo.direccion,
+            m.Circunscripcion.codigo.label("circunscripcion"),
+            m.Bodega.codigo.label("bodega"),
+            m.ConsejoPopular.id.label("consejo_id"),
+            m.ConsejoPopular.nombre.label("consejo"),
+            m.Municipio.nombre.label("municipio"),
+            m.Provincia.nombre.label("provincia"),
+            m.HogarNucleo.procede_ayuda,
+            _tiene_perfil_1_expr().label("tiene_perfil_1"),
+            m.CatalogoPerfilVulnerabilidad.codigo.label("perfil_codigo"),
+            m.CatalogoPerfilVulnerabilidad.nombre.label("perfil_nombre"),
+        )
+        .join(m.ConsejoPopular, m.ConsejoPopular.id == m.HogarNucleo.consejo_popular_id)
+        .join(m.Municipio, m.Municipio.id == m.ConsejoPopular.municipio_id)
+        .join(m.Provincia, m.Provincia.id == m.Municipio.provincia_id)
+        .outerjoin(m.Circunscripcion, m.Circunscripcion.id == m.HogarNucleo.circunscripcion_id)
+        .outerjoin(m.Bodega, m.Bodega.id == m.HogarNucleo.bodega_id)
+        .outerjoin(m.Persona, m.Persona.hogar_id == m.HogarNucleo.id)
+        .outerjoin(m.PersonaVulnerabilidad, m.PersonaVulnerabilidad.persona_id == m.Persona.id)
+        .outerjoin(
+            m.CatalogoPerfilVulnerabilidad,
+            m.CatalogoPerfilVulnerabilidad.id == m.PersonaVulnerabilidad.perfil_vulnerabilidad_id,
+        )
+        .where(
+            or_(
+                and_(
+                    m.CatalogoPerfilVulnerabilidad.codigo.in_([1, 2, 3, 4, 5, 6, 7, 8]),
+                    or_(m.HogarNucleo.procede_ayuda.is_(True), tiene_perfil_1),
+                ),
+                and_(no_tiene_perfiles, m.HogarNucleo.procede_ayuda.is_(True)),
+            )
+        )
+        .distinct()
+        .order_by(
+            m.ConsejoPopular.nombre,
+            m.CatalogoPerfilVulnerabilidad.codigo.nulls_last(),
+            m.HogarNucleo.codigo,
+        )
+    )
+    if consejo_id is not None:
+        stmt = stmt.where(m.ConsejoPopular.id == consejo_id)
+    rows = (await db.execute(stmt)).all()
+    nucleo_ids = list(dict.fromkeys(row.id for row in rows))
+    personas_por_nucleo: dict[int, list[dict]] = {}
+    if nucleo_ids:
+        personas = (await db.execute(
+            select(
+                m.Persona.hogar_id,
+                m.Persona.nombre_apellidos,
+                m.Persona.cedula,
+                m.CatalogoSexo.nombre.label("sexo"),
+            )
+            .outerjoin(m.CatalogoSexo, m.CatalogoSexo.id == m.Persona.sexo_id)
+            .where(m.Persona.hogar_id.in_(nucleo_ids))
+            .order_by(m.Persona.hogar_id, m.Persona.id)
+        )).all()
+        for hogar_id, nombre, cedula, sexo in personas:
+            personas_por_nucleo.setdefault(hogar_id, []).append({
+                "nombre": nombre,
+                "cedula": cedula,
+                "sexo": _sexo_letra(sexo),
+            })
+
+    consejos: dict[tuple[int, str], dict] = {}
+    nucleos_por_grupo: dict[tuple[int, int], dict[int, dict]] = {}
+    perfiles: dict[tuple[int, int], dict] = {}
+    for row in rows:
+        consejo_key = (row.consejo_id, row.consejo)
+        consejos[consejo_key] = {
+            "id": row.consejo_id,
+            "nombre": row.consejo,
+            "municipio": row.municipio,
+            "provincia": row.provincia,
+        }
+        profile_key = (row.consejo_id, row.perfil_codigo)
+        perfiles[profile_key] = {
+            "codigo": row.perfil_codigo,
+            "nombre": row.perfil_nombre or "Sin perfil",
+        }
+        nucleo = nucleos_por_grupo.setdefault(profile_key, {}).setdefault(row.id, {
+            "codigo": row.codigo,
+            "direccion": row.direccion or "",
+            "circunscripcion": row.circunscripcion or "",
+            "bodega": row.bodega if row.bodega is not None else "",
+            "procede": True if row.tiene_perfil_1 else row.procede_ayuda,
+            "personas": personas_por_nucleo.get(row.id, []),
+        })
+        nucleo["direccion_completa"] = " - ".join(
+            parte for parte in (nucleo["direccion"], nucleo["circunscripcion"]) if parte
+        )
+
+    resultado = []
+    for consejo in sorted(consejos.values(), key=lambda item: item["nombre"]):
+        grupos = []
+        for profile_key in sorted(perfiles, key=lambda key: (key[0], key[1] is None, key[1] or 0)):
+            if profile_key[0] != consejo["id"]:
+                continue
+            grupos.append({
+                "perfil": perfiles[profile_key],
+                "nucleos": list(nucleos_por_grupo[profile_key].values()),
+            })
+        resultado.append({**consejo, "consejo": consejo["nombre"], "grupos": grupos})
+    return resultado
+
+
+async def listar_nucleos_por_consejo_impresion(
+    db: AsyncSession,
+    consejo_id: int | None = None,
+) -> list[dict]:
+    stmt = (
+        select(
+            m.HogarNucleo.id,
+            m.HogarNucleo.codigo,
+            m.HogarNucleo.direccion,
+            m.Circunscripcion.codigo.label("circunscripcion"),
+            m.Bodega.codigo.label("bodega"),
+            m.ConsejoPopular.id.label("consejo_id"),
+            m.ConsejoPopular.nombre.label("consejo"),
+            m.Municipio.nombre.label("municipio"),
+            m.Provincia.nombre.label("provincia"),
+            m.HogarNucleo.procede_ayuda,
+            _tiene_perfil_1_expr().label("tiene_perfil_1"),
+            m.CatalogoPerfilVulnerabilidad.codigo.label("perfil_codigo"),
+            m.CatalogoPerfilVulnerabilidad.nombre.label("perfil_nombre"),
+        )
+        .join(m.ConsejoPopular, m.ConsejoPopular.id == m.HogarNucleo.consejo_popular_id)
+        .join(m.Municipio, m.Municipio.id == m.ConsejoPopular.municipio_id)
+        .join(m.Provincia, m.Provincia.id == m.Municipio.provincia_id)
+        .outerjoin(m.Circunscripcion, m.Circunscripcion.id == m.HogarNucleo.circunscripcion_id)
+        .outerjoin(m.Bodega, m.Bodega.id == m.HogarNucleo.bodega_id)
+        .outerjoin(m.Persona, m.Persona.hogar_id == m.HogarNucleo.id)
+        .outerjoin(m.PersonaVulnerabilidad, m.PersonaVulnerabilidad.persona_id == m.Persona.id)
+        .outerjoin(
+            m.CatalogoPerfilVulnerabilidad,
+            m.CatalogoPerfilVulnerabilidad.id == m.PersonaVulnerabilidad.perfil_vulnerabilidad_id,
+        )
+        .distinct()
+        .order_by(
+            m.ConsejoPopular.nombre,
+            m.CatalogoPerfilVulnerabilidad.codigo.nulls_last(),
+            m.HogarNucleo.codigo,
+        )
+    )
+    if consejo_id is not None:
+        stmt = stmt.where(m.ConsejoPopular.id == consejo_id)
+    rows = (await db.execute(stmt)).all()
+    nucleo_ids = list(dict.fromkeys(row.id for row in rows))
+    personas_por_nucleo: dict[int, list[dict]] = {}
+    if nucleo_ids:
+        personas = (await db.execute(
+            select(
+                m.Persona.hogar_id,
+                m.Persona.nombre_apellidos,
+                m.Persona.cedula,
+                m.CatalogoSexo.nombre.label("sexo"),
+            )
+            .outerjoin(m.CatalogoSexo, m.CatalogoSexo.id == m.Persona.sexo_id)
+            .where(m.Persona.hogar_id.in_(nucleo_ids))
+            .order_by(m.Persona.hogar_id, m.Persona.id)
+        )).all()
+        for hogar_id, nombre, cedula, sexo in personas:
+            personas_por_nucleo.setdefault(hogar_id, []).append({
+                "nombre": nombre,
+                "cedula": cedula,
+                "sexo": _sexo_letra(sexo),
+            })
+
+    consejos: dict[int, dict] = {}
+    grupos_por_consejo: dict[int, dict[int | None, dict]] = {}
+    for row in rows:
+        consejos.setdefault(row.consejo_id, {
+            "id": row.consejo_id,
+            "consejo": row.consejo,
+            "municipio": row.municipio,
+            "provincia": row.provincia,
+        })
+        grupos = grupos_por_consejo.setdefault(row.consejo_id, {})
+        grupo = grupos.setdefault(row.perfil_codigo, {
+            "perfil": {
+                "codigo": row.perfil_codigo,
+                "nombre": row.perfil_nombre or "Sin perfil",
+            },
+            "nucleos": {},
+        })
+        grupo["nucleos"].setdefault(row.id, {
+            "codigo": row.codigo,
+            "direccion_completa": " - ".join(
+                parte for parte in (row.direccion or "", row.circunscripcion or "") if parte
+            ),
+            "bodega": row.bodega if row.bodega is not None else "",
+            "procede": True if row.tiene_perfil_1 else row.procede_ayuda,
+            "personas": personas_por_nucleo.get(row.id, []),
+        })
+
+    resultado = []
+    for consejo_id, consejo in consejos.items():
+        grupos = grupos_por_consejo[consejo_id]
+        consejo["grupos"] = [
+            {
+                "perfil": grupo["perfil"],
+                "nucleos": list(grupo["nucleos"].values()),
+            }
+            for _, grupo in sorted(
+                grupos.items(),
+                key=lambda item: (item[0] is None, item[0] or 0),
+            )
+        ]
+        resultado.append(consejo)
+    return resultado
+
+
+async def contar_por_consejo(
+    db: AsyncSession,
+    perfil_id: int | None = None,
+    edad_min: int | None = None,
+    edad_max: int | None = None,
+) -> list[dict]:
     tiene_perfil_1 = _tiene_perfil_1_expr()
     nucleos_con_perfil = func.count(func.distinct(case(
         (m.PersonaVulnerabilidad.perfil_vulnerabilidad_id == perfil_id, m.HogarNucleo.id),
@@ -456,6 +734,10 @@ async def contar_por_consejo(db: AsyncSession, perfil_id: int | None = None) -> 
             _conteo_personas_edad_rango(perfil_id, 0, 7).label("personas_perfil_0_7"),
             _conteo_personas_edad_rango(perfil_id, 8, 13).label("personas_perfil_8_13"),
         ])
+    if edad_min is not None or edad_max is not None:
+        columnas.append(
+            _conteo_personas_edad_rango(perfil_id, edad_min if edad_min is not None else 0, edad_max if edad_max is not None else 120).label("personas_edad_rango")
+        )
     stmt = (
         select(*columnas)
         .outerjoin(m.HogarNucleo, m.HogarNucleo.consejo_popular_id == m.ConsejoPopular.id)
@@ -473,7 +755,7 @@ async def contar_nucleos(
     db: AsyncSession,
     busqueda: str | None = None,
     consejo_id: int | None = None,
-    perfil_id: int | None = None,
+    perfil_id: int | str | None = None,
     estado: str | None = None,
 ) -> int:
     stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id, estado).order_by(None).with_only_columns(m.HogarNucleo.id)
@@ -514,7 +796,7 @@ async def contar_personas_en_nucleos(
     db: AsyncSession,
     busqueda: str | None = None,
     consejo_id: int | None = None,
-    perfil_id: int | None = None,
+    perfil_id: int | str | None = None,
 ) -> int:
     hogares = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id).order_by(None).with_only_columns(m.HogarNucleo.id)
     stmt = select(func.count(m.Persona.id)).where(m.Persona.hogar_id.in_(hogares))
@@ -545,7 +827,7 @@ async def listar_nucleos(
     limit: int | None = None,
     busqueda: str | None = None,
     consejo_id: int | None = None,
-    perfil_id: int | None = None,
+    perfil_id: int | str | None = None,
     estado: str | None = None,
 ) -> list[dict]:
     stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id, estado)
