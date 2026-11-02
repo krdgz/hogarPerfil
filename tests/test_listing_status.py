@@ -43,6 +43,20 @@ class ListingStatusTests(unittest.IsolatedAsyncioTestCase):
                 if status == "procede":
                     self.assertIn(" OR (EXISTS", sql)
 
+    def test_age_range_requires_a_matching_person_with_valid_age(self):
+        sql = str(
+            _consulta_listado_nucleos(edad_min=20, edad_max=30).compile(
+                dialect=postgresql.dialect(),
+                compile_kwargs={"literal_binds": True},
+            )
+        )
+
+        self.assertIn("EXISTS (SELECT persona.id", sql)
+        self.assertIn("persona.hogar_id = hogar_nucleo.id", sql)
+        self.assertIn("make_date", sql)
+        self.assertIn(">= 20", sql)
+        self.assertIn("<= 30", sql)
+
     async def test_updates_only_status_and_commits(self):
         for status in (True, False, None):
             with self.subTest(status=status):

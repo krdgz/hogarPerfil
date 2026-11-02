@@ -25,15 +25,15 @@
     <select id="consejo-impresion-elegibles" name="consejo_id">
       <option value="">Todos los consejos</option>
       {% for consejo in consejos %}
-      <option value="{{ consejo.id }}">{{ consejo.nombre }}</option>
+      <option value="{{ consejo.id }}" {% if consejo_id == consejo.id %}selected{% endif %}>{{ consejo.nombre }}</option>
       {% endfor %}
     </select>
     <label for="perfil-impresion">Perfil de vulnerabilidad</label>
     <select id="perfil-impresion" name="perfil_id">
       <option value="">Todos los perfiles</option>
-      <option value="sin-perfil">Solo núcleos sin perfil</option>
+      <option value="sin-perfil" {% if perfil_id == 'sin-perfil' %}selected{% endif %}>Solo núcleos sin perfil</option>
       {% for perfil in perfiles %}
-      <option value="{{ perfil.id }}">{{ perfil.codigo }} - {{ perfil.nombre }}</option>
+      <option value="{{ perfil.id }}" {% if perfil_id == perfil.id %}selected{% endif %}>{{ perfil.codigo }} - {{ perfil.nombre }}</option>
       {% endfor %}
     </select>
     <label for="sexo-impresion">Integrantes por sexo</label>
@@ -46,16 +46,16 @@
     <label for="estado-impresion">Estado de procedencia</label>
     <select id="estado-impresion" name="estado">
       <option value="">Todos los estados</option>
-      <option value="procede">Procede</option>
-      <option value="no_procede">No procede</option>
-      <option value="pendiente">Pendiente</option>
+      <option value="procede" {% if estado == 'procede' %}selected{% endif %}>Procede</option>
+      <option value="no_procede" {% if estado == 'no_procede' %}selected{% endif %}>No procede</option>
+      <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
     </select>
     <label for="busqueda-impresion">Buscar código, dirección, integrante o CI</label>
-    <input id="busqueda-impresion" name="q" type="search" maxlength="100" />
+    <input id="busqueda-impresion" name="q" type="search" maxlength="100" value="{{ busqueda }}" />
     <label for="edad-min-impresion">Edad mínima</label>
-    <input id="edad-min-impresion" name="edad_min" type="number" min="0" max="120" />
+    <input id="edad-min-impresion" name="edad_min" type="number" min="0" max="120" value="{{ edad_min if edad_min is not none else '' }}" />
     <label for="edad-max-impresion">Edad máxima</label>
-    <input id="edad-max-impresion" name="edad_max" type="number" min="0" max="120" />
+    <input id="edad-max-impresion" name="edad_max" type="number" min="0" max="120" value="{{ edad_max if edad_max is not none else '' }}" />
     <div class="dialog-actions">
       <button class="btn" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
       <button class="btn btn-primary" type="submit">Continuar</button>
@@ -91,6 +91,12 @@
       <option value="no_procede" {% if estado == 'no_procede' %}selected{% endif %}>No procede</option>
       <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
     </select>
+  </label>
+  <label class="profile-field">Edad mínima
+    <input name="edad_min" type="number" min="0" max="120" value="{{ edad_min if edad_min is not none else '' }}" />
+  </label>
+  <label class="profile-field">Edad máxima
+    <input name="edad_max" type="number" min="0" max="120" value="{{ edad_max if edad_max is not none else '' }}" />
   </label>
   <button class="btn" type="submit">Buscar</button>
   <span class="list-count">Mostrando {{ desde }}–{{ hasta }} de {{ total }} núcleos</span>
@@ -151,16 +157,16 @@
         <td><a class="btn btn-small" href="{{ url_for('formulario_consulta', nucleo_id=nucleo.id) }}?return_to={{ return_to|urlencode }}">Abrir</a></td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="10">{% if busqueda or consejo_id or perfil_id or estado %}No hay núcleos que coincidan con los filtros.{% else %}Todavía no hay núcleos registrados.{% endif %}</td></tr>
+      <tr class="empty-row"><td colspan="10">{% if busqueda or consejo_id or perfil_id or estado or rango_edad_activo %}No hay núcleos que coincidan con los filtros.{% else %}Todavía no hay núcleos registrados.{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 {% if total_paginas > 1 %}
 <nav class="list-pagination" aria-label="Paginación de núcleos">
-  {% if pagina > 1 %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina - 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}" aria-label="Página anterior">Anterior</a>{% endif %}
+  {% if pagina > 1 %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina - 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}{% if rango_edad_activo %}&amp;edad_min={{ edad_min }}&amp;edad_max={{ edad_max }}{% endif %}" aria-label="Página anterior">Anterior</a>{% endif %}
   <span>Página {{ pagina }} de {{ total_paginas }}</span>
-  {% if pagina < total_paginas %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina + 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}" aria-label="Página siguiente">Siguiente</a>{% endif %}
+  {% if pagina < total_paginas %}<a class="btn" href="{{ url_for('pagina_listado') }}?page={{ pagina + 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}{% if rango_edad_activo %}&amp;edad_min={{ edad_min }}&amp;edad_max={{ edad_max }}{% endif %}" aria-label="Página siguiente">Siguiente</a>{% endif %}
 </nav>
 {% endif %}
 {% endblock %}

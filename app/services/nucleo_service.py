@@ -341,6 +341,8 @@ def _consulta_listado_nucleos(
     consejo_id: int | None = None,
     perfil_id: int | str | None = None,
     estado: str | None = None,
+    edad_min: int | None = None,
+    edad_max: int | None = None,
 ):
     stmt = (
         select(
@@ -376,6 +378,20 @@ def _consulta_listado_nucleos(
         stmt = stmt.where(and_(m.HogarNucleo.procede_ayuda.is_(False), ~tiene_perfil_1))
     elif estado == "pendiente":
         stmt = stmt.where(and_(m.HogarNucleo.procede_ayuda.is_(None), ~tiene_perfil_1))
+    edad_min, edad_max = normalizar_rango_edad(edad_min, edad_max)
+    if edad_min is not None or edad_max is not None:
+        edad = _edad_ci_sql_expr()
+        persona_en_rango = (
+            select(m.Persona.id)
+            .where(
+                m.Persona.hogar_id == m.HogarNucleo.id,
+                edad.is_not(None),
+                edad >= (edad_min if edad_min is not None else 0),
+                edad <= (edad_max if edad_max is not None else 120),
+            )
+            .exists()
+        )
+        stmt = stmt.where(persona_en_rango)
     termino = (busqueda or "").strip()
     if termino:
         patron = f"%{termino}%"
@@ -757,8 +773,12 @@ async def contar_nucleos(
     consejo_id: int | None = None,
     perfil_id: int | str | None = None,
     estado: str | None = None,
+    edad_min: int | None = None,
+    edad_max: int | None = None,
 ) -> int:
-    stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id, estado).order_by(None).with_only_columns(m.HogarNucleo.id)
+    stmt = _consulta_listado_nucleos(
+        busqueda, consejo_id, perfil_id, estado, edad_min, edad_max
+    ).order_by(None).with_only_columns(m.HogarNucleo.id)
     return await db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
 
@@ -829,8 +849,12 @@ async def listar_nucleos(
     consejo_id: int | None = None,
     perfil_id: int | str | None = None,
     estado: str | None = None,
+    edad_min: int | None = None,
+    edad_max: int | None = None,
 ) -> list[dict]:
-    stmt = _consulta_listado_nucleos(busqueda, consejo_id, perfil_id, estado)
+    stmt = _consulta_listado_nucleos(
+        busqueda, consejo_id, perfil_id, estado, edad_min, edad_max
+    )
     if offset is not None:
         stmt = stmt.offset(offset)
     if limit is not None:

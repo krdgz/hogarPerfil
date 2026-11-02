@@ -100,6 +100,8 @@ async def pagina_listado(
     consejo_id: str = "",
     perfil_id: str = "",
     estado: str = "",
+    edad_min: str = "",
+    edad_max: str = "",
     db: AsyncSession = Depends(get_db),
 ):
     page_size = 50
@@ -119,7 +121,11 @@ async def pagina_listado(
         perfil_id = None
     if estado not in {"procede", "no_procede", "pendiente"}:
         estado = None
-    total = await contar_nucleos(db, q, consejo_id, perfil_id, estado)
+    edad_min, edad_max = normalizar_rango_edad(edad_min, edad_max)
+    rango_edad_activo = edad_min is not None or edad_max is not None
+    total = await contar_nucleos(
+        db, q, consejo_id, perfil_id, estado, edad_min, edad_max
+    )
     total_pages = max(1, (total + page_size - 1) // page_size)
     page = min(page, total_pages)
     return templates.TemplateResponse(
@@ -134,6 +140,8 @@ async def pagina_listado(
                 consejo_id=consejo_id,
                 perfil_id=perfil_id,
                 estado=estado,
+                edad_min=edad_min,
+                edad_max=edad_max,
             ),
             "consejos": consejos,
             "consejo_id": consejo_id,
@@ -141,6 +149,9 @@ async def pagina_listado(
             "perfil_id": perfil_id,
             "estado": estado,
             "busqueda": q,
+            "edad_min": edad_min,
+            "edad_max": edad_max,
+            "rango_edad_activo": rango_edad_activo,
             "pagina": page,
             "total": total,
             "total_paginas": total_pages,
