@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .printing.router import router as printing_router
@@ -24,3 +25,8 @@ app.include_router(copias.router)
 @app.get("/")
 async def root():
     return {"msg": "OK", "form": "/nucleos/nuevo"}
+
+
+@app.get("/about", response_class=HTMLResponse)
+async def pagina_about(request: Request) -> HTMLResponse:
+    return nucleo.templates.TemplateResponse("about.html", {"request": request})

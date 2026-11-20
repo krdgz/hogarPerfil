@@ -20,6 +20,13 @@ body {
   font-size: 11px;
   text-align: center;
 }
+.site-footer a { color: inherit; }
+.about-page { max-width: 760px; margin: 0 auto; }
+.about-page > h1 { margin-bottom: 20px; }
+.about-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 0; }
+.about-details > div { border-top: 1px solid #dfe5e2; padding-top: 10px; }
+.about-details dt { color: #63716d; font-size: 11px; }
+.about-details dd { margin: 5px 0 0; font-weight: 600; }
 
 h1 { font-size: 18px; margin: 0; }
 h2 { font-size: 15px; margin: 22px 0 8px; border-bottom: 2px solid #234; padding-bottom: 4px; }
