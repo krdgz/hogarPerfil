@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Personas registradas{% endblock %}
+
+{% block content %}
+<header class="list-header">
+  <div>
+    <p class="eyebrow">Caracterización de hogares</p>
+    <h1>Personas registradas</h1>
+  </div>
+  <div class="list-header-actions">
+    <button class="btn" type="button" onclick="document.getElementById('dialogo-impresion-personas').showModal()">Imprimir</button>
+    <a class="btn btn-primary" href="{{ url_for('pagina_listado') }}">Listado de núcleos</a>
+  </div>
+</header>
+
+<dialog id="dialogo-impresion-personas" aria-labelledby="titulo-impresion-personas">
+  <form method="get" action="{{ url_for('pagina_impresion_personas') }}" target="_blank">
+    <h2 id="titulo-impresion-personas">Imprimir personas</h2>
+    <label for="tipo-impresion-personas">Qué imprimir</label>
+    <select id="tipo-impresion-personas" name="tipo">
+      <option value="elegibles">Personas de núcleos elegibles</option>
+      <option value="todos">Todas las personas</option>
+    </select>
+    <label for="consejo-impresion-personas">Consejo Popular</label>
+    <select id="consejo-impresion-personas" name="consejo_id">
+      <option value="">Todos los consejos</option>
+      {% for consejo in consejos %}
+      <option value="{{ consejo.id }}" {% if consejo_id == consejo.id %}selected{% endif %}>{{ consejo.nombre }}</option>
+      {% endfor %}
+    </select>
+    <label for="perfil-impresion-personas">Perfil de vulnerabilidad</label>
+    <select id="perfil-impresion-personas" name="perfil_id">
+      <option value="">Todos los perfiles</option>
+      <option value="sin-perfil" {% if perfil_id == 'sin-perfil' %}selected{% endif %}>Solo personas sin perfil</option>
+      {% for perfil in perfiles %}
+      <option value="{{ perfil.id }}" {% if perfil_id == perfil.id %}selected{% endif %}>{{ perfil.codigo }} - {{ perfil.nombre }}</option>
+      {% endfor %}
+    </select>
+    <label for="sexo-impresion-personas">Sexo</label>
+    <select id="sexo-impresion-personas" name="sexo">
+      <option value="">Cualquier sexo</option>
+      <option value="F">Mujeres</option>
+      <option value="M">Hombres</option>
+      <option value="sin-sexo">Sin sexo registrado</option>
+    </select>
+    <label for="estado-impresion-personas">Estado de procedencia</label>
+    <select id="estado-impresion-personas" name="estado">
+      <option value="">Todos los estados</option>
+      <option value="procede" {% if estado == 'procede' %}selected{% endif %}>Procede</option>
+      <option value="no_procede" {% if estado == 'no_procede' %}selected{% endif %}>No procede</option>
+      <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+    </select>
+    <label for="busqueda-impresion-personas">Buscar código, dirección, persona o CI</label>
+    <input id="busqueda-impresion-personas" name="q" type="search" maxlength="100" value="{{ busqueda }}" />
+    <label for="edad-min-impresion-personas">Edad mínima</label>
+    <input id="edad-min-impresion-personas" name="edad_min" type="number" min="0" max="120" value="{{ edad_min if edad_min is not none else '' }}" />
+    <label for="edad-max-impresion-personas">Edad máxima</label>
+    <input id="edad-max-impresion-personas" name="edad_max" type="number" min="0" max="120" value="{{ edad_max if edad_max is not none else '' }}" />
+    <div class="dialog-actions">
+      <button class="btn" type="button" onclick="this.closest('dialog').close()">Cancelar</button>
+      <button class="btn btn-primary" type="submit">Continuar</button>
+    </div>
+  </form>
+</dialog>
+
+<form class="list-toolbar" method="get" action="{{ url_for('pagina_listado_personas') }}">
+  <label class="search-field">Buscar persona
+    <input name="q" type="search" value="{{ busqueda }}" placeholder="Nombre, CI, código, dirección o ubicación" autocomplete="off" />
+  </label>
+  <label class="council-field">Consejo Popular
+    <select name="consejo_id">
+      <option value="">Todos los consejos</option>
+      {% for consejo in consejos %}
+      <option value="{{ consejo.id }}" {% if consejo_id == consejo.id %}selected{% endif %}>{{ consejo.nombre }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="profile-field">Perfil de vulnerabilidad
+    <select name="perfil_id">
+      <option value="">Todos los perfiles</option>
+      <option value="sin-perfil" {% if perfil_id == 'sin-perfil' %}selected{% endif %}>Sin perfil</option>
+      {% for perfil in perfiles %}
+      <option value="{{ perfil.id }}" {% if perfil_id == perfil.id %}selected{% endif %}>{{ perfil.codigo }} - {{ perfil.nombre }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="status-field">Estado
+    <select name="estado">
+      <option value="">Todos los estados</option>
+      <option value="procede" {% if estado == 'procede' %}selected{% endif %}>Procede</option>
+      <option value="no_procede" {% if estado == 'no_procede' %}selected{% endif %}>No procede</option>
+      <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+    </select>
+  </label>
+  <label class="profile-field">Edad mínima
+    <input name="edad_min" type="number" min="0" max="120" value="{{ edad_min if edad_min is not none else '' }}" />
+  </label>
+  <label class="profile-field">Edad máxima
+    <input name="edad_max" type="number" min="0" max="120" value="{{ edad_max if edad_max is not none else '' }}" />
+  </label>
+  <button class="btn" type="submit">Buscar</button>
+  <span class="list-count">Mostrando {{ desde }}–{{ hasta }} de {{ total }} personas</span>
+</form>
+
+<div class="table-scroll">
+  <table class="tabla-listado tabla-listado-personas">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Provincia</th>
+        <th>Municipio</th>
+        <th>Consejo Popular</th>
+        <th>Dirección</th>
+        <th>Persona</th>
+        <th>Perfil</th>
+        <th>Procedencia</th>
+        <th>Código de bodega</th>
+        <th><span class="sr-only">Acciones</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for persona in personas %}
+      <tr>
+        <td class="codigo-cell">{{ persona.codigo }}</td>
+        <td>{{ persona.provincia }}</td>
+        <td>{{ persona.municipio }}</td>
+        <td>{{ persona.consejo }}</td>
+        <td>{{ persona.direccion or '—' }}</td>
+        <td class="integrantes-cell">
+          <span>{{ persona.nombre_apellidos }}</span>
+          <span class="integrante-cedula">CI {{ persona.cedula or '—' }}</span>
+        </td>
+        <td class="perfil-cell">{{ persona.perfil_resumen }}</td>
+        <td class="estado-cell">
+          {% if persona.tiene_perfil_1 %}
+          <span class="estado-fijo estado-procede">Procede</span>
+          {% elif persona.procede is sameas true %}
+          <span class="estado-fijo estado-procede">Procede</span>
+          {% elif persona.procede is sameas false %}
+          <span class="estado-fijo">No procede</span>
+          {% else %}
+          <span class="estado-fijo">Pendiente</span>
+          {% endif %}
+        </td>
+        <td>{{ persona.bodega or '—' }}</td>
+        <td><a class="btn btn-small" href="{{ url_for('formulario_consulta', nucleo_id=persona.nucleo_id) }}?return_to=/nucleos/personas">Abrir</a></td>
+      </tr>
+      {% else %}
+      <tr class="empty-row"><td colspan="10">{% if busqueda or consejo_id or perfil_id or estado or rango_edad_activo %}No hay personas que coincidan con los filtros.{% else %}Todavía no hay personas registradas.{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if total_paginas > 1 %}
+<nav class="list-pagination" aria-label="Paginación de personas">
+  {% if pagina > 1 %}<a class="btn" href="{{ url_for('pagina_listado_personas') }}?page={{ pagina - 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}{% if rango_edad_activo %}&amp;edad_min={{ edad_min }}&amp;edad_max={{ edad_max }}{% endif %}" aria-label="Página anterior">Anterior</a>{% endif %}
+  <span>Página {{ pagina }} de {{ total_paginas }}</span>
+  {% if pagina < total_paginas %}<a class="btn" href="{{ url_for('pagina_listado_personas') }}?page={{ pagina + 1 }}&amp;q={{ busqueda|urlencode }}{% if consejo_id %}&amp;consejo_id={{ consejo_id }}{% endif %}{% if perfil_id %}&amp;perfil_id={{ perfil_id }}{% endif %}{% if estado %}&amp;estado={{ estado }}{% endif %}{% if rango_edad_activo %}&amp;edad_min={{ edad_min }}&amp;edad_max={{ edad_max }}{% endif %}" aria-label="Página siguiente">Siguiente</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

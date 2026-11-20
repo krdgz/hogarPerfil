@@ -19,6 +19,8 @@ from ..services.nucleo_service import (
     eliminar_nucleo,
     listar_consejos_populares,
     listar_nucleos,
+    listar_personas_listado,
+    contar_personas_listado,
     listar_perfiles_vulnerabilidad,
     normalizar_rango_edad,
     obtener_nucleo,
@@ -63,7 +65,7 @@ def _optional_positive_id(value: str, parameter_name: str) -> int | None:
 
 def _safe_list_return_to(value: str) -> str:
     parsed = urlsplit(value.strip())
-    if parsed.scheme or parsed.netloc or parsed.path != "/nucleos":
+    if parsed.scheme or parsed.netloc or parsed.path not in {"/nucleos", "/nucleos/personas"}:
         return "/nucleos"
     return parsed.path + (f"?{parsed.query}" if parsed.query else "")
 
@@ -158,6 +160,69 @@ async def pagina_listado(
             "desde": (page - 1) * page_size + 1 if total else 0,
             "hasta": min(page * page_size, total),
             "return_to": request.url.path + (f"?{request.url.query}" if request.url.query else ""),
+        },
+    )
+
+
+@router.get("/personas", response_class=HTMLResponse, name="pagina_listado_personas")
+async def pagina_listado_personas(
+    request: Request,
+    page: int = Query(1, ge=1),
+    q: str = Query("", max_length=100),
+    consejo_id: str = "",
+    perfil_id: str = "",
+    estado: str = "",
+    edad_min: str = "",
+    edad_max: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    page_size = 50
+    consejo_id = _optional_positive_id(consejo_id, "consejo_id")
+    perfil_id = PERFIL_SIN_PERFIL if perfil_id == PERFIL_SIN_PERFIL else _optional_positive_id(perfil_id, "perfil_id")
+    consejos = await listar_consejos_populares(db)
+    perfiles = await listar_perfiles_vulnerabilidad(db)
+    if consejo_id not in {consejo["id"] for consejo in consejos}:
+        consejo_id = None
+    if perfil_id not in {perfil["id"] for perfil in perfiles} and perfil_id != PERFIL_SIN_PERFIL:
+        perfil_id = None
+    if estado not in {"procede", "no_procede", "pendiente"}:
+        estado = None
+    edad_min, edad_max = normalizar_rango_edad(edad_min, edad_max)
+    rango_edad_activo = edad_min is not None or edad_max is not None
+    total = await contar_personas_listado(
+        db, q, consejo_id, perfil_id, estado, edad_min, edad_max
+    )
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = min(page, total_pages)
+    return templates.TemplateResponse(
+        "nucleo/listado_personas.html",
+        {
+            "request": request,
+            "personas": await listar_personas_listado(
+                db,
+                offset=(page - 1) * page_size,
+                limit=page_size,
+                busqueda=q,
+                consejo_id=consejo_id,
+                perfil_id=perfil_id,
+                estado=estado,
+                edad_min=edad_min,
+                edad_max=edad_max,
+            ),
+            "consejos": consejos,
+            "consejo_id": consejo_id,
+            "perfiles": perfiles,
+            "perfil_id": perfil_id,
+            "estado": estado,
+            "busqueda": q,
+            "edad_min": edad_min,
+            "edad_max": edad_max,
+            "rango_edad_activo": rango_edad_activo,
+            "pagina": page,
+            "total": total,
+            "total_paginas": total_pages,
+            "desde": (page - 1) * page_size + 1 if total else 0,
+            "hasta": min(page * page_size, total),
         },
     )
 

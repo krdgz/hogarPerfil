@@ -9,6 +9,7 @@
   </div>
   <div class="list-header-actions">
     <button class="btn" type="button" onclick="document.getElementById('dialogo-impresion-elegibles').showModal()">Imprimir</button>
+    <a class="btn" href="{{ url_for('pagina_listado_personas') }}">Listado por personas</a>
     <a class="btn btn-primary" href="{{ url_for('formulario_nuevo') }}?return_to={{ return_to|urlencode }}">+ Crear núcleo</a>
   </div>
 </header>

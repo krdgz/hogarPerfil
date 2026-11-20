@@ -15,6 +15,7 @@ from ..services.nucleo_service import (
     listar_perfiles_vulnerabilidad,
     edad_en_anos_desde_ci,
     normalizar_rango_edad,
+    listar_personas_listado,
 )
 
 
@@ -230,6 +231,80 @@ async def pagina_impresion_nucleos_elegibles(
             "edad_max": edad_max,
             "perfil": perfil_seleccionado,
             "grupos_consejos": grupos_consejos,
+            "directora_nombre": os.getenv("DIRECTORA_NOMBRE", "").strip(),
+        },
+    )
+
+
+@router.get("/nucleos/personas/impresion", name="pagina_impresion_personas")
+async def pagina_impresion_personas(
+    request: Request,
+    tipo: Literal["elegibles", "todos"] = "elegibles",
+    consejo_id: str = Query(""),
+    perfil_id: str = Query(""),
+    sexo: Literal["", "F", "M", "sin-sexo"] = "",
+    estado: Literal["", "procede", "no_procede", "pendiente"] = "",
+    q: str = Query("", max_length=100),
+    edad_min: str = Query(""),
+    edad_max: str = Query(""),
+    db: AsyncSession = Depends(get_db),
+):
+    consejo_id_param = consejo_id.strip()
+    if consejo_id_param:
+        try:
+            consejo_id = int(consejo_id_param)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="consejo_id debe ser un entero") from exc
+        if consejo_id < 1:
+            raise HTTPException(status_code=422, detail="consejo_id debe ser mayor que cero")
+    else:
+        consejo_id = None
+    consejos = await listar_consejos_populares(db)
+    if consejo_id is not None and consejo_id not in {consejo["id"] for consejo in consejos}:
+        consejo_id = None
+    perfiles = await listar_perfiles_vulnerabilidad(db)
+    perfil_seleccionado = None
+    solo_sin_perfil = perfil_id == "sin-perfil"
+    if perfil_id and not solo_sin_perfil:
+        try:
+            perfil_seleccionado = next(
+                (perfil for perfil in perfiles if perfil["id"] == int(perfil_id)),
+                None,
+            )
+        except ValueError:
+            perfil_seleccionado = None
+    perfil_id_param = perfil_seleccionado["id"] if perfil_seleccionado else None
+    edad_min, edad_max = normalizar_rango_edad(edad_min, edad_max)
+    personas = await listar_personas_listado(
+        db,
+        busqueda=q,
+        consejo_id=consejo_id,
+        perfil_id="sin-perfil" if solo_sin_perfil else perfil_id_param,
+        estado=estado or None,
+        edad_min=edad_min,
+        edad_max=edad_max,
+        solo_elegibles=tipo == "elegibles",
+    )
+    if sexo == "F":
+        personas = [persona for persona in personas if persona["sexo"] == "F"]
+    elif sexo == "M":
+        personas = [persona for persona in personas if persona["sexo"] == "M"]
+    elif sexo == "sin-sexo":
+        personas = [persona for persona in personas if not persona["sexo"]]
+    return templates.TemplateResponse(
+        "personas.html",
+        {
+            "request": request,
+            "tipo": tipo,
+            "consejo_id": consejo_id,
+            "perfil_id": perfil_id,
+            "perfil": perfil_seleccionado,
+            "sexo": sexo,
+            "estado": estado,
+            "busqueda": q,
+            "edad_min": edad_min,
+            "edad_max": edad_max,
+            "personas": personas,
             "directora_nombre": os.getenv("DIRECTORA_NOMBRE", "").strip(),
         },
     )

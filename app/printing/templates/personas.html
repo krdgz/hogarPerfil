@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% if tipo == 'todos' %}Todas las personas{% else %}Personas elegibles{% endif %}</title>
+  <style>
+    :root {
+      --directora-footer: "{{ directora_nombre or 'No configurada (DIRECTORA_NOMBRE)' }}";
+    }
+  </style>
+  <link rel="stylesheet" href="{{ request.url_for('print_static', path='print.css') }}" />
+</head>
+<body>
+  <header class="screen-header screen-only">
+    <div>
+      <p class="eyebrow">Caracterización de hogares</p>
+      <h1>Vista de impresión por personas</h1>
+    </div>
+    <nav aria-label="Acciones">
+      <a href="/nucleos/personas">Volver al listado</a>
+      <button type="button" onclick="window.print()">Imprimir</button>
+    </nav>
+  </header>
+
+  <main>
+    <p class="filter-summary">{% if tipo == 'todos' %}Todas las personas{% else %}Personas de núcleos elegibles{% endif %}{% if perfil %} | Perfil {{ perfil.codigo }} - {{ perfil.nombre }}{% elif perfil_id == 'sin-perfil' %} | Sin perfil{% endif %}{% if sexo == 'F' %} | Mujeres{% elif sexo == 'M' %} | Hombres{% elif sexo == 'sin-sexo' %} | Sin sexo registrado{% endif %}{% if estado %} | Estado: {{ estado|replace('_', ' ') }}{% endif %}{% if busqueda %} | Búsqueda: {{ busqueda }}{% endif %}{% if edad_min is not none or edad_max is not none %} | Edades {{ edad_min if edad_min is not none else 0 }}-{{ edad_max if edad_max is not none else 120 }}{% endif %}</p>
+    {% if not personas %}
+    <p>No hay personas que coincidan con los filtros seleccionados.</p>
+    {% else %}
+      {% for consejo, filas in personas|groupby('consejo') %}
+      <section class="print-section">
+        <h2>Consejo Popular: {{ consejo }}</h2>
+        <table class="eligible-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Provincia</th>
+              <th>Municipio</th>
+              <th>Dirección</th>
+              <th>Persona</th>
+              <th>CI</th>
+              <th>Perfil</th>
+              <th>Procedencia</th>
+              <th>Código de bodega</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for persona in filas %}
+            <tr>
+              <td>{{ persona.codigo }}</td>
+              <td>{{ persona.provincia }}</td>
+              <td>{{ persona.municipio }}</td>
+              <td>{{ persona.direccion or '—' }}{% if persona.circunscripcion %} - {{ persona.circunscripcion }}{% endif %}</td>
+              <td>{{ persona.nombre_apellidos }}</td>
+              <td>{{ persona.cedula or '—' }}</td>
+              <td>{{ persona.perfil_resumen }}</td>
+              <td>{% if persona.procede is sameas true %}Procede{% elif persona.procede is sameas false %}No procede{% else %}Pendiente{% endif %}</td>
+              <td>{{ persona.bodega or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+      {% endfor %}
+    {% endif %}
+  </main>
+</body>
+</html>
