@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Copias de seguridad{% endblock %}
+
+{% block content %}
+<header class="list-header">
+  <div>
+    <p class="eyebrow">Administración</p>
+    <h1>Copias de seguridad y restablecimiento</h1>
+  </div>
+  <div class="list-header-actions">
+    <a class="btn" href="{{ url_for('pagina_listado') }}">Volver al listado</a>
+  </div>
+</header>
+
+{% if restaurado %}
+<div class="save-notice">Base de datos restablecida.</div>
+{% endif %}
+{% if error %}
+<div class="backup-error">No se pudo completar la operación: {{ error }}</div>
+{% endif %}
+
+<section class="backup-grid">
+  <article class="backup-card">
+    <h2>Crear copia de seguridad</h2>
+    <p>Crea un archivo SQL completo que puede guardarse en una memoria USB o disco. No incluye información desde fuera de la base de datos.</p>
+    <form method="post" action="{{ url_for('crear_copia') }}">
+      <button class="btn btn-primary" type="submit">Guardar copia SQL</button>
+    </form>
+  </article>
+
+  <article class="backup-card backup-danger">
+    <h2>Restablecer una copia</h2>
+    <p>Selecciona un archivo SQL, <strong>.backup</strong> o <strong>.dump</strong> para restablecer la base de datos Hogares.</p>
+    <form method="post" action="{{ url_for('restaurar_copia') }}" enctype="multipart/form-data" onsubmit="return confirm('¿Está seguro de restablecer la base de datos? Los datos actuales serán reemplazados o eliminados según el archivo de copia.')">
+      <label>Archivo de copia
+        <input name="archivo" type="file" accept=".sql,.backup,.dump" required />
+      </label>
+      <label>Escriba RESTABLECER para confirmar
+        <input name="confirmar" type="text" autocomplete="off" required pattern="RESTABLECER" />
+      </label>
+      <button class="btn btn-danger" type="submit">Restablecer base de datos</button>
+    </form>
+  </article>
+</section>
+{% endblock %}

@@ -5,6 +5,7 @@ body {
   background: #f2f4f8;
   color: #1a1a1a;
   font-size: 13px;
+}
 .page {
   max-width: 1500px;
   margin: 16px auto;
@@ -297,3 +298,16 @@ textarea { width: 100%; padding: 7px 8px; border: 1px solid #aab; border-radius:
 
 @media print {
 }
+
+.backup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0 24px; }
+.backup-card { border: 1px solid #d4ddd9; border-radius: 5px; padding: 16px; background: #f9fbfa; }
+.backup-card h2 { margin-top: 0; border: 0; }
+.backup-card form { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.backup-card label { width: min(100%, 420px); }
+.backup-card input { width: 100%; padding: 7px 8px; }
+.backup-danger { border-color: #dcc2be; background: #fffafa; }
+.backup-error { margin: 12px 0; padding: 10px 12px; border-left: 4px solid #a33a32; background: #fff0ed; color: #7c2922; }
+.tabla-copias th, .tabla-copias td { padding: 8px 10px; text-align: left; }
+.backup-empty { text-align: center; color: #63716d; padding: 24px !important; }
+.global-nav { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+@media (max-width: 900px) { .backup-grid { grid-template-columns: 1fr; } }

@@ -30,16 +30,15 @@
     {% else %}
       {% for consejo, filas in personas|groupby('consejo') %}
       <section class="print-section">
-        <h2>Consejo Popular: {{ consejo }}</h2>
+        {% set primera = filas|first %}
+        <h2>Consejo Popular: {{ consejo }}{% if primera %} | Provincia: {{ primera.provincia }} | Municipio: {{ primera.municipio }}{% endif %}</h2>
         <table class="eligible-table">
           <thead>
             <tr>
               <th>Código</th>
-              <th>Provincia</th>
-              <th>Municipio</th>
-              <th>Dirección</th>
               <th>Persona</th>
               <th>CI</th>
+              <th>Dirección</th>
               <th>Perfil</th>
               <th>Procedencia</th>
               <th>Código de bodega</th>
@@ -49,11 +48,9 @@
             {% for persona in filas %}
             <tr>
               <td>{{ persona.codigo }}</td>
-              <td>{{ persona.provincia }}</td>
-              <td>{{ persona.municipio }}</td>
-              <td>{{ persona.direccion or '—' }}{% if persona.circunscripcion %} - {{ persona.circunscripcion }}{% endif %}</td>
               <td>{{ persona.nombre_apellidos }}</td>
               <td>{{ persona.cedula or '—' }}</td>
+              <td>{{ persona.direccion or '—' }}{% if persona.circunscripcion %} - {{ persona.circunscripcion }}{% endif %}</td>
               <td>{{ persona.perfil_resumen }}</td>
               <td>{% if persona.procede is sameas true %}Procede{% elif persona.procede is sameas false %}No procede{% else %}Pendiente{% endif %}</td>
               <td>{{ persona.bodega or '—' }}</td>

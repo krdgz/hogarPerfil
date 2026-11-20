@@ -107,11 +107,10 @@
     <thead>
       <tr>
         <th>Código</th>
-        <th>Provincia</th>
-        <th>Municipio</th>
-        <th>Consejo Popular</th>
-        <th>Dirección</th>
         <th>Persona</th>
+        <th>CI</th>
+        <th>Dirección</th>
+        <th>Consejo Popular</th>
         <th>Perfil</th>
         <th>Procedencia</th>
         <th>Código de bodega</th>
@@ -122,14 +121,10 @@
       {% for persona in personas %}
       <tr>
         <td class="codigo-cell">{{ persona.codigo }}</td>
-        <td>{{ persona.provincia }}</td>
-        <td>{{ persona.municipio }}</td>
-        <td>{{ persona.consejo }}</td>
+        <td>{{ persona.nombre_apellidos }}</td>
+        <td class="integrante-cedula">{{ persona.cedula or '—' }}</td>
         <td>{{ persona.direccion or '—' }}</td>
-        <td class="integrantes-cell">
-          <span>{{ persona.nombre_apellidos }}</span>
-          <span class="integrante-cedula">CI {{ persona.cedula or '—' }}</span>
-        </td>
+        <td>{{ persona.consejo }}</td>
         <td class="perfil-cell">{{ persona.perfil_resumen }}</td>
         <td class="estado-cell">
           {% if persona.tiene_perfil_1 %}
@@ -146,7 +141,7 @@
         <td><a class="btn btn-small" href="{{ url_for('formulario_consulta', nucleo_id=persona.nucleo_id) }}?return_to=/nucleos/personas">Abrir</a></td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="10">{% if busqueda or consejo_id or perfil_id or estado or rango_edad_activo %}No hay personas que coincidan con los filtros.{% else %}Todavía no hay personas registradas.{% endif %}</td></tr>
+      <tr class="empty-row"><td colspan="9">{% if busqueda or consejo_id or perfil_id or estado or rango_edad_activo %}No hay personas que coincidan con los filtros.{% else %}Todavía no hay personas registradas.{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>

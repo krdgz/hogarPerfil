@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .printing.router import router as printing_router
-from .routers import nucleo
+from .routers import copias, nucleo
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -18,6 +18,7 @@ app.mount(
 )
 app.include_router(nucleo.router)
 app.include_router(printing_router)
+app.include_router(copias.router)
 
 
 @app.get("/")

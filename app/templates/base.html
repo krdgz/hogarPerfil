@@ -6,6 +6,11 @@
   <link rel="stylesheet" href="{{ url_for('static', path='css/form.css') }}?v={{ static_version() }}" />
 </head>
 <body>
+  <nav class="global-nav" aria-label="Navegación principal">
+    <a class="btn" href="{{ url_for('pagina_listado') }}">Núcleos</a>
+    <a class="btn" href="{{ url_for('pagina_listado_personas') }}">Personas</a>
+    <a class="btn" href="{{ url_for('pagina_copias') }}">Copias de seguridad</a>
+  </nav>
   <div class="page">
     {% block content %}{% endblock %}
   </div>
